@@ -1288,7 +1288,7 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
         clearMapMarkers();
         
         // Радиус поиска в километрах (можно настроить)
-        const searchRadius = 150; // 150 км радиус поиска
+        const searchRadius = 100; // 100 км радиус поиска
         
         // Получаем данные всех проектов из кэша
         const allProjects = ['lenta', 'magnet', 'vkusvill'];
@@ -1907,7 +1907,7 @@ function updateProjectInfo() {
         projectInfo.innerHTML = `
             <div class="project-name">Все проекты</div>
             <div class="city-name">${locationType}: ${selectedCity}</div>
-            <div class="project-note">Показываются магазины всех проектов в радиусе 150 км</div>
+            <div class="project-note">Показываются магазины всех проектов в радиусе 100 км</div>
         `;
         
         changeProjectBtn.style.display = 'inline-block';
