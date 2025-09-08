@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Телепорт</title>
+    <title>Платформа для отображения потребности</title>
+    <link rel="icon" type="image/png" href="teleport.png">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -19,6 +20,9 @@
                 </button>
                 <button id="updateCacheBtn" class="btn btn-info" style="display: none;" onclick="forceUpdateCache()">
                     🔄 Обновить данные
+                </button>
+                <button id="logoutBtn" class="btn btn-danger" onclick="logout()" style="margin-top: 10px; width: 100%;">
+                    🚪 Выйти
                 </button>
             </div>
             
@@ -44,16 +48,13 @@
                     <input type="text" id="endPoint" placeholder="Куда...">
                     
                     <div class="route-buttons">
-                        <button id="buildRouteBtn">Построить маршрут</button>
+                        <button id="buildRouteBtn">
+                            <span class="yandex-icon">🗺️</span>
+                            Построить маршрут
+                        </button>
                         <button id="clearRouteBtn" class="clear-btn">Очистить</button>
                     </div>
-                <div id="routeInfo" class="route-info" style="display: none;"></div>    
-                    <div id="yandexMapsButton" class="yandex-maps-button">
-                        <button id="openInYandexMapsBtn" class="yandex-btn">
-                            <span class="yandex-icon">🗺️</span>
-                            Открыть в Яндекс.Картах
-                        </button>
-                    </div>
+                <div id="routeInfo" class="route-info" style="display: none;"></div>
                 </div>
             </div>
         </div>

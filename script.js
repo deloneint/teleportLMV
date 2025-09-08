@@ -179,8 +179,43 @@ function initDOMCache() {
     DOMCache.loading = document.getElementById('loading');
 }
 
+// Проверка авторизации
+function checkAuth() {
+    const session = localStorage.getItem('auth_session');
+    if (!session) {
+        window.location.href = 'auth.html';
+        return false;
+    }
+    
+    try {
+        const sessionData = JSON.parse(session);
+        if (sessionData.expires <= Date.now()) {
+            localStorage.removeItem('auth_session');
+            window.location.href = 'auth.html';
+            return false;
+        }
+    } catch (error) {
+        localStorage.removeItem('auth_session');
+        window.location.href = 'auth.html';
+        return false;
+    }
+    
+    return true;
+}
+
+// Выход из системы
+function logout() {
+    localStorage.removeItem('auth_session');
+    window.location.href = 'auth.html';
+}
+
 // Инициализация приложения
 document.addEventListener('DOMContentLoaded', function() {
+    // Проверяем авторизацию
+    if (!checkAuth()) {
+        return;
+    }
+    
     initDOMCache();
     initMap();
     setupEventListeners();
@@ -451,10 +486,6 @@ function displayRouteInfo(route) {
     `;
     
     routeInfo.style.display = 'block';
-    
-    // Показываем кнопку для открытия в Яндекс.Картах
-    const yandexMapsButton = document.getElementById('yandexMapsButton');
-    if (yandexMapsButton) yandexMapsButton.style.display = 'block';
 }
 
 // Открытие маршрута в Яндекс.Картах
@@ -567,11 +598,6 @@ function setupEventListeners() {
         DOMCache.buildRouteBtn.addEventListener('click', buildRoute);
     }
     
-    // Открытие в Яндекс.Картах
-    const openInYandexMapsBtn = document.getElementById('openInYandexMapsBtn');
-    if (openInYandexMapsBtn) {
-        openInYandexMapsBtn.addEventListener('click', openInYandexMaps);
-    }
 
     // Очистка маршрута
     if (DOMCache.clearRouteBtn) {
@@ -1288,7 +1314,7 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
         clearMapMarkers();
         
         // Радиус поиска в километрах (можно настроить)
-        const searchRadius = 100; // 100 км радиус поиска
+        const searchRadius = 100; // 150 км радиус поиска
         
         // Получаем данные всех проектов из кэша
         const allProjects = ['lenta', 'magnet', 'vkusvill'];
@@ -1368,6 +1394,39 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
                     createStoreMarker(coordinates, storeGroup, project);
                 }
             }
+        }
+        
+        // Проверяем ошибки #N/A в загруженных магазинах для выбранного города
+        let allErrors = [];
+        for (const project of allProjects) {
+            if (!projectDataCache.has(project)) continue;
+            
+            const projectData = projectDataCache.get(project);
+            const stores = projectData.stores || [];
+            
+            // Фильтруем магазины по координатам (те же, что загружены на карту)
+            const nearbyStores = stores.filter(store => {
+                if (!store.coordinates) return false;
+                
+                const coords = store.coordinates.split(',').map(coord => parseFloat(coord.trim()));
+                if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) return false;
+                
+                const distance = calculateDistance(cityCoordinates, coords);
+                return distance <= searchRadius;
+            });
+            
+            // Проверяем ошибки в отфильтрованных магазинах
+            const errors = detectDataErrors(nearbyStores, project);
+            if (errors.length > 0) {
+                allErrors = allErrors.concat(errors);
+            }
+        }
+        
+        // Показываем модальное окно с ошибками, если они есть
+        if (allErrors.length > 0) {
+            setTimeout(() => {
+                showErrorModal(allErrors);
+            }, 1000); // Небольшая задержка для завершения загрузки
         }
         
         // Скрываем индикатор загрузки
@@ -2042,131 +2101,12 @@ async function geocodeFullAddress(fullAddress) {
     }
 }
 
-// Построение маршрута (основная функция)
+// Построение маршрута (открытие в Яндекс.Картах)
 async function buildRoute() {
-    const startPoint = DOMCache.startPoint.value.trim();
-    const endPoint = DOMCache.endPoint.value.trim();
-
-    if (!startPoint || !endPoint) {
-        showError('Укажите начальную и конечную точки');
-        return;
-    }
-
-    if (!map) {
-        showError('Карта не загружена');
-        return;
-    }
-
-    try {
-        // Получаем координаты через Nominatim
-        const startCoords = await geocodeAddress(startPoint);
-        const endCoords = await geocodeAddress(endPoint);
-
-        if (!startCoords || !endCoords) {
-            showError('Не удалось найти координаты для указанных адресов');
-            return;
-        }
-
-        // Определяем профиль маршрутизации
-        const profile = 'driving-car'; // По умолчанию
-
-        // Строим маршрут
-        const routeData = await buildRouteSmart(startCoords, endCoords, profile);
-
-        if (!routeData || !routeData.features || routeData.features.length === 0) {
-            showError('Не удалось построить маршрут');
-            return;
-        }
-
-        const route = routeData.features[0];
-        const coordinates = route.geometry.coordinates.map(coord => [coord[1], coord[0]]); // [lat, lon]
-
-        // Очищаем старые маршруты через сохраненные ссылки
-        if (currentRouteLine) {
-            map.geoObjects.remove(currentRouteLine);
-            currentRouteLine = null;
-        }
-        
-        if (currentStartMarker) {
-            map.geoObjects.remove(currentStartMarker);
-            currentStartMarker = null;
-        }
-        
-        if (currentEndMarker) {
-            map.geoObjects.remove(currentEndMarker);
-            currentEndMarker = null;
-        }
-
-        // Добавляем маркеры точек на Яндекс.Карту
-        currentStartMarker = new window.ymaps.Placemark(startCoords, { 
-            iconContent: 'A', 
-            hintContent: startPoint,
-            preset: 'islands#blueDotIcon'
-        });
-        currentEndMarker = new window.ymaps.Placemark(endCoords, { 
-            iconContent: 'B', 
-            hintContent: endPoint,
-            preset: 'islands#redDotIcon'
-        });
-
-        // Добавляем линию маршрута на Яндекс.Карту
-        currentRouteLine = new window.ymaps.Polyline(coordinates, {
-            strokeColor: '#3b82f6',
-            strokeWidth: 6,
-            strokeOpacity: 0.9
-        });
-
-        map.geoObjects.add(currentStartMarker);
-        map.geoObjects.add(currentEndMarker);
-        map.geoObjects.add(currentRouteLine);
-
-        // Подстраиваем карту под маршрут
-        try {
-            const bounds = routeLine.geometry.getBounds();
-            if (bounds) {
-                map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 });
-            }
-        } catch (boundsError) {
-            // Центрируем карту на середине маршрута
-            const centerLat = (startCoords[0] + endCoords[0]) / 2;
-            const centerLon = (startCoords[1] + endCoords[1]) / 2;
-            map.setCenter([centerLat, centerLon], 12);
-        }
-
-        // Показываем информацию о маршруте
-        const distance = route.properties.summary.distance;
-        const duration = route.properties.summary.duration;
-
-        if (distance && duration) {
-            displayRouteInfo({
-                distance: Math.round(distance * 10) / 10,
-                duration: Math.round(duration * 10) / 10
-            });
-        }
-
-        // Кнопка Яндекс.Карт теперь всегда видна
-
-
-
-    } catch (error) {
-
-    }
+    // Просто вызываем функцию открытия в Яндекс.Картах
+    openInYandexMaps();
 }
 
-// Отображение информации о маршруте
-function displayRouteInfo(route) {
-    const routeInfo = DOMCache.routeInfo;
-    if (routeInfo) {
-        routeInfo.innerHTML = `
-            <div class="route-info">
-                <h3>Информация о маршруте</h3>
-                <p><strong>Расстояние:</strong> ${route.distance} км</p>
-                <p><strong>Время в пути:</strong> ${route.duration} ч</p>
-            </div>
-        `;
-        routeInfo.style.display = 'block';
-    }
-}
 
 // Функция для установки магазина как точки маршрута
 function setStoreAsRoutePoint(pointType) {
@@ -2244,3 +2184,93 @@ function setSearchLocationAsRoutePoint(pointType, address) {
 
 // Делаем функцию доступной глобально для вызова из HTML
 window.setSearchLocationAsRoutePoint = setSearchLocationAsRoutePoint;
+
+// Функция для обнаружения ошибок #N/A в данных
+function detectDataErrors(storesData, projectType) {
+    const errors = [];
+    
+    storesData.forEach((store, index) => {
+        const storeErrors = [];
+        
+        // Проверяем различные поля в зависимости от типа проекта
+        if (projectType === 'lenta') {
+            if (store.tk === '#N/A') storeErrors.push('ТК');
+            if (store.vacancy === '#N/A') storeErrors.push('Вакансия');
+            if (store.position === '#N/A') storeErrors.push('Потребность');
+            if (store.tariff === '#N/A') storeErrors.push('Тариф');
+        } else if (projectType === 'magnet') {
+            if (store.need === '#N/A') storeErrors.push('Потребность');
+        } else if (projectType === 'vkusvill') {
+            if(store.fullAddress === '#N/A') storeErrors.push('Полный адрес');
+            if (store.position === '#N/A') storeErrors.push('Вакансия');
+            if (store.need === '#N/A') storeErrors.push('Потребность');
+            if (store.income === '#N/A') storeErrors.push('Средний доход в день');
+        }
+        
+        if (storeErrors.length > 0) {
+            errors.push({
+                index: index + 1,
+                address: store.fullAddress || store.address || 'Адрес не указан',
+                project: getProjectDisplayName(projectType),
+                fields: storeErrors,
+                store: store
+            });
+        }
+    });
+    
+    return errors;
+}
+
+// Функция для показа модального окна с ошибками
+function showErrorModal(errors) {
+    if (errors.length === 0) return;
+    
+    // Создаем модальное окно для ошибок
+    const errorModal = document.createElement('div');
+    errorModal.className = 'error-modal-overlay';
+    errorModal.innerHTML = `
+        <div class="error-modal-content">
+            <div class="error-modal-header">
+                <h2>⚠️ Обнаружены ошибки в данных</h2>
+                <button class="error-close-btn" onclick="closeErrorModal()">×</button>
+            </div>
+            <div class="error-modal-body">
+                <p>Найдено <strong>${errors.length}</strong> записей с ошибками #N/A:</p>
+                <div class="error-list">
+                    ${errors.map(error => `
+                        <div class="error-item">
+                            <div class="error-header">
+                                <span class="error-project">${error.project}</span>
+                            </div>
+                            <div class="error-address">${error.address}</div>
+                            <div class="error-fields">
+                                <strong>Проблемные поля:</strong> ${error.fields.join(', ')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(errorModal);
+    
+    // Показываем модальное окно с анимацией
+    setTimeout(() => {
+        errorModal.classList.add('show');
+    }, 10);
+}
+
+// Функция для закрытия модального окна ошибок
+function closeErrorModal() {
+    const errorModal = document.querySelector('.error-modal-overlay');
+    if (errorModal) {
+        errorModal.classList.remove('show');
+        setTimeout(() => {
+            errorModal.remove();
+        }, 300);
+    }
+}
+
+// Делаем функции доступными глобально
+window.closeErrorModal = closeErrorModal;window.exportErrors = exportErrors;
