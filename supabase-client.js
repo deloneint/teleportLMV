@@ -167,7 +167,7 @@ async function loginUser(phone, password) {
 async function createSession(userId) {
     try {
         const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 1); // 24 часа
+        expiresAt.setHours(expiresAt.getHours() + 12); 
         
         const { data, error } = await supabase
             .from('sessions')
@@ -199,73 +199,10 @@ async function createSession(userId) {
 }
 
 
-async function checkSession(sessionId) {
-    try {
-        const { data, error } = await supabase
-            .from('sessions')
-            .select(`
-                *,
-                users (*)
-            `)
-            .eq('id', sessionId)
-            .gt('expires_at', new Date().toISOString())
-            .single();
-        
-        if (error) {
-            if (error.code === 'PGRST116') {
-                return { 
-                    success: false, 
-                    error: 'Сессия не найдена или истекла' 
-                };
-            }
-            console.error('Supabase error:', error);
-            return { 
-                success: false, 
-                error: translateError(error)
-            };
-        }
-        
-        return { success: true, session: data };
-    } catch (error) {
-        console.error('Ошибка проверки сессии:', error);
-        return { 
-            success: false, 
-            error: translateError(error)
-        };
-    }
-}
-
-
-async function logoutUser(sessionId) {
-    try {
-        const { error } = await supabase
-            .from('sessions')
-            .delete()
-            .eq('id', sessionId);
-        
-        if (error) {
-            console.error('Supabase error:', error);
-            return { 
-                success: false, 
-                error: translateError(error)
-            };
-        }
-        
-        return { success: true };
-    } catch (error) {
-        console.error('Ошибка выхода:', error);
-        return { 
-            success: false, 
-            error: translateError(error)
-        };
-    }
-}
 
 
 window.SupabaseAuth = {
     registerUser,
     loginUser,
-    createSession,
-    checkSession,
-    logoutUser
+    createSession
 };

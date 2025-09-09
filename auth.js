@@ -1,6 +1,5 @@
 class SimpleAuth {
     constructor() {
-        this.users = this.loadUsers();
         this.currentUser = null;
         this.isLoginMode = true;
         
@@ -12,15 +11,6 @@ class SimpleAuth {
         this.checkExistingSession();
     }
 
-    loadUsers() {
-        const users = localStorage.getItem('auth_users');
-        return users ? JSON.parse(users) : [];
-    }
-
-
-    saveUsers() {
-        localStorage.setItem('auth_users', JSON.stringify(this.users));
-    }
 
 
     setupEventListeners() {
@@ -214,15 +204,15 @@ async handleRegister() {
         if (session) {
             try {
                 const sessionData = JSON.parse(session);
-                const user = this.users.find(u => u.id === sessionData.userId);
+                const currentTime = Date.now();
+                const sessionExpiry = new Date(sessionData.expires).getTime();
                 
-                if (user && sessionData.expires > Date.now()) {
-                    this.currentUser = user;
-
+                if (sessionExpiry > currentTime) {
+                    this.currentUser = { id: sessionData.userId };
                     window.location.href = 'index.html';
                 } else {
-
                     localStorage.removeItem('auth_session');
+                    this.showNotification('Сессия истекла. Пожалуйста, войдите снова.', 'info');
                 }
             } catch (error) {
                 localStorage.removeItem('auth_session');
@@ -231,15 +221,6 @@ async handleRegister() {
     }
 
 
-    saveSession() {
-        if (this.currentUser) {
-            const sessionData = {
-                userId: this.currentUser.id,
-                expires: Date.now() + (24 * 60 * 60 * 1000) // 24 часа
-            };
-            localStorage.setItem('auth_session', JSON.stringify(sessionData));
-        }
-    }
 
 
     logout() {

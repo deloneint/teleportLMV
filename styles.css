@@ -900,7 +900,88 @@ body {
     justify-content: space-between;
     align-items: center;
     border-top: 1px solid #eee;
+    gap: 15px;
 }
+
+.project-mode-switch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    max-width: 200px;
+}
+
+.btn-switch {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 180px;
+    height: 48px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-switch:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-switch:active {
+    transform: translateY(0);
+}
+
+.switch-text {
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.4s ease;
+    position: relative;
+    z-index: 2;
+}
+
+
+.btn-switch.single-project {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+}
+
+.btn-switch.single-project:hover {
+    box-shadow: 0 6px 20px rgba(79, 172, 254, 0.4);
+}
+
+.btn-switch.single-project .switch-text {
+    transform: translateX(-20px);
+    opacity: 0;
+}
+
+.btn-switch::before {
+    content: "Один проект";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) translateX(20px);
+    opacity: 0;
+    transition: all 0.4s ease;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 1;
+}
+
+.btn-switch.single-project::before {
+    transform: translate(-50%, -50%) translateX(0);
+    opacity: 1;
+}
+
+/* Анимация иконки для "Один проект" */
 
 
 .btn {
@@ -973,6 +1054,16 @@ body {
     .modal-footer {
         flex-direction: column;
         gap: 15px;
+    }
+    
+    .project-mode-switch {
+        max-width: none;
+        width: 100%;
+    }
+    
+    .btn-switch {
+        width: 100%;
+        min-width: auto;
     }
     
     .btn {

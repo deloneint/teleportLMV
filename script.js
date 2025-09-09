@@ -1,9 +1,9 @@
-
 let map = null;
 let selectedProject = null;
 let selectedCity = null;
 let citiesData = [];
 let isModalOpen = false;
+let isSingleProjectMode = false; 
 
 
 const DOMCache = {
@@ -22,35 +22,29 @@ const DOMCache = {
     cityGrid: null,
     continueBtn: null,
     storeInfoPanel: null,
-    loading: null
+    loading: null,
+    projectModeSwitch: null
 };
-
 
 let projectDataCache = new Map();
 let isLoadingProject = false;
-let isLoadingData = false; // Флаг для loadDataFromGoogleSheets
-let isLoadingProjectData = false; // Флаг для loadProjectDataForMap
-
+let isLoadingData = false; 
+let isLoadingProjectData = false; 
 
 let currentRouteLine = null;
 let currentStartMarker = null;
 let currentEndMarker = null;
 
-
 let currentSearchMarker = null;
-
-
-
 
 async function preloadAllProjectData() {
     try {
         await loadDataFromGoogleScript(CONFIG.googleScript.url, 'lenta');
         startAutoCacheUpdate();
     } catch (error) {
-
+        console.error('Ошибка в preloadAllProjectData:', error);
     }
 }
-
 
 function startAutoCacheUpdate() {
     const CACHE_UPDATE_INTERVAL = 60 * 60 * 1000;
@@ -75,56 +69,45 @@ function startAutoCacheUpdate() {
                 await updateCache();
             }
         } catch (error) {
-
         }
     }, CACHE_UPDATE_INTERVAL);
 }
-
 
 async function updateCache() {
     try {
         await loadDataFromGoogleScript(CONFIG.googleScript.url, 'lenta');
     } catch (error) {
-
     }
 }
-
 
 async function forceUpdateCache() {
     try {
         projectDataCache.clear();
         await loadDataFromGoogleScript(CONFIG.googleScript.url, 'lenta');
     } catch (error) {
-
     }
 }
-
 
 window.forceUpdateCache = forceUpdateCache;
 
 
 async function loadDataFromGoogleSheets(project) {
-
+    
     if (isLoadingData) {
         return { storesData: [], citiesData: [] };
     }
     
-
     isLoadingData = true;
     
-
     showLoading(true, `Загружаем данные всех проектов...`);
     
     try {
-
-
+        
         const rawData = await loadDataFromGoogleScript(CONFIG.googleScript.url, project);
         
         if (rawData && rawData.length > 0) {
-
             const cities = extractUniqueCities(rawData, project);
             
-
             window.storesData = rawData;
             citiesData = cities;
             
@@ -137,13 +120,10 @@ async function loadDataFromGoogleSheets(project) {
         console.error('Ошибка загрузки данных из Google таблиц:', error);
         return { storesData: [], citiesData: [] };
     } finally {
-
         showLoading(false);
-
         isLoadingData = false;
     }
 }
-
 
 function initDOMCache() {
     DOMCache.searchInput = document.getElementById('searchInput');
@@ -162,11 +142,12 @@ function initDOMCache() {
     DOMCache.continueBtn = document.getElementById('continueBtn');
     DOMCache.storeInfoPanel = document.getElementById('storeInfoPanel');
     DOMCache.loading = document.getElementById('loading');
+    DOMCache.projectModeSwitch = document.getElementById('projectModeSwitch');
 }
-
 
 function checkAuth() {
     const session = localStorage.getItem('auth_session');
+    
     if (!session) {
         window.location.href = 'auth.html';
         return false;
@@ -174,12 +155,15 @@ function checkAuth() {
     
     try {
         const sessionData = JSON.parse(session);
+        
         if (sessionData.expires <= Date.now()) {
             localStorage.removeItem('auth_session');
             window.location.href = 'auth.html';
             return false;
         }
+        
     } catch (error) {
+        console.error('Ошибка парсинга сессии:', error);
         localStorage.removeItem('auth_session');
         window.location.href = 'auth.html';
         return false;
@@ -188,15 +172,12 @@ function checkAuth() {
     return true;
 }
 
-
 function logout() {
     localStorage.removeItem('auth_session');
     window.location.href = 'auth.html';
 }
 
-
 document.addEventListener('DOMContentLoaded', function() {
-
     if (!checkAuth()) {
         return;
     }
@@ -205,36 +186,29 @@ document.addEventListener('DOMContentLoaded', function() {
     initMap();
     setupEventListeners();
     
-
     preloadAllProjectData();
     
-
     const closeStoreInfoBtn = document.getElementById('closeStoreInfoBtn');
     if (closeStoreInfoBtn) {
         closeStoreInfoBtn.addEventListener('click', hideStoreInfo);
     }
     
-
     const savedProject = localStorage.getItem('selectedProject');
     const savedCity = localStorage.getItem('selectedCity');
     
     if (savedProject && savedCity) {
-
         selectedProject = savedProject;
         selectedCity = savedCity;
         updateProjectInfo();
         centerMapOnCity(selectedCity);
     } else {
-
         setTimeout(() => {
             showProjectModal();
         }, 1000);
         
-
         setupModalEventListeners();
     }
 });
-
 
 function createMap() {
     try {
@@ -244,7 +218,6 @@ function createMap() {
             controls: ['zoomControl', 'fullscreenControl']
         });
         
-
         map.events.add('click', function (e) {
             if (currentSearchMarker && currentSearchMarker.balloon) {
                 currentSearchMarker.balloon.close();
@@ -254,7 +227,6 @@ function createMap() {
         showError(`Ошибка создания карты: ${error.message}`);
     }
 }
-
 
 function initMap() {
     if (!CONFIG.yandex.apiKey) {
@@ -284,7 +256,6 @@ function initMap() {
     
     document.head.appendChild(script);
 }
-
 
 async function performSearch() {
     const query = DOMCache.searchInput.value.trim();
@@ -321,7 +292,6 @@ async function performSearch() {
     }
 }
 
-
 function displaySearchResults(results) {
     const resultsContainer = DOMCache.searchResults;
     
@@ -337,7 +307,6 @@ function displaySearchResults(results) {
         </div>`
     ).join('');
     
-
     resultsContainer.querySelectorAll('.search-result').forEach(item => {
         item.addEventListener('click', function() {
             const location = {
@@ -352,18 +321,15 @@ function displaySearchResults(results) {
     resultsContainer.style.display = 'block';
 }
 
-
 function selectLocation(location) {
     if (!map) {
         return;
     }
 
-
     if (currentSearchMarker) {
         map.geoObjects.remove(currentSearchMarker);
         currentSearchMarker = null;
     }
-
 
     const infoWindowContent = `
         <div class="search-marker-info">
@@ -374,7 +340,6 @@ function selectLocation(location) {
             </div>
         </div>
     `;
-
 
     currentSearchMarker = new window.ymaps.Placemark(
         [location.lat, location.lon],
@@ -387,13 +352,10 @@ function selectLocation(location) {
         }
     );
     
-
     currentSearchMarker.events.add('click', function () {
-
         if (currentSearchMarker.balloon.isOpen()) {
             currentSearchMarker.balloon.close();
         }
-
         setTimeout(() => {
             currentSearchMarker.balloon.open();
         }, 50);
@@ -401,78 +363,14 @@ function selectLocation(location) {
     
     map.geoObjects.add(currentSearchMarker);
 
-
     map.setCenter([location.lat, location.lon], 15);
-
 
     DOMCache.searchResults.style.display = 'none';
     
-
     DOMCache.searchInput.value = location.display_name;
     
-
     DOMCache.routeInfo.style.display = 'none';
 }
-
-
-function displayRouteInfo(route) {
-    const routeInfo = DOMCache.routeInfo;
-    
-
-    const formatTime = (minutes) => {
-        if (minutes < 60) {
-            return `${minutes} мин`;
-        } else {
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            return mins > 0 ? `${hours} ч ${mins} мин` : `${hours} ч`;
-        }
-    };
-    
-
-    const formatDistance = (km) => {
-        if (km < 1) {
-            return `${Math.round(km * 1000)} м`;
-        } else {
-            return `${km} км`;
-        }
-    };
-    
-
-    const timeByWalking = Math.round(route.distance * 60 / 5); // 5 км/ч пешком
-    const timeByBike = Math.round(route.distance * 60 / 15); // 15 км/ч на велосипеде
-    
-    routeInfo.innerHTML = `
-        <div class="route-header">
-            <h4>📊 Информация о маршруте</h4>
-        </div>
-        
-        <div class="route-main-info">
-            <div class="route-stat primary">
-                <span class="stat-label">🚗 На автомобиле</span>
-                <span class="stat-value">${formatTime(route.duration)}</span>
-            </div>
-            <div class="route-stat primary">
-                <span class="stat-label">📏 Расстояние</span>
-                <span class="stat-value">${formatDistance(route.distance)}</span>
-            </div>
-        </div>
-        
-        <div class="route-alternatives">
-            <div class="route-stat">
-                <span class="stat-label">🚶 Пешком</span>
-                <span class="stat-value">${formatTime(timeByWalking)}</span>
-            </div>
-            <div class="route-stat">
-                <span class="stat-label">🚴 На велосипеде</span>
-                <span class="stat-value">${formatTime(timeByBike)}</span>
-            </div>
-        </div>
-    `;
-    
-    routeInfo.style.display = 'block';
-}
-
 
 function openInYandexMaps() {
     const startPoint = DOMCache.startPoint.value.trim();
@@ -486,24 +384,18 @@ function openInYandexMaps() {
     let yandexMapsUrl;
     
     if (startPoint && endPoint) {
-
         yandexMapsUrl = `https://yandex.ru/maps/?rtext=${encodeURIComponent(startPoint)}~${encodeURIComponent(endPoint)}&rtt=auto`;
     } else if (startPoint) {
-
         yandexMapsUrl = `https://yandex.ru/maps/?text=${encodeURIComponent(startPoint)}`;
     } else {
-
         yandexMapsUrl = `https://yandex.ru/maps/?text=${encodeURIComponent(endPoint)}`;
     }
     
-
     window.open(yandexMapsUrl, '_blank');
 }
 
-
 function clearRoute() {
-
-    let currentCenter = [55.7558, 37.6176]; // По умолчанию Москва
+    let currentCenter = [55.7558, 37.6176]; 
     let currentZoom = 10;
     
     if (map) {
@@ -511,11 +403,9 @@ function clearRoute() {
         currentZoom = map.getZoom();
     }
     
-
     DOMCache.startPoint.value = '';
     DOMCache.endPoint.value = '';
     
-
     if (currentRouteLine) {
         map.geoObjects.remove(currentRouteLine);
         currentRouteLine = null;
@@ -531,27 +421,21 @@ function clearRoute() {
         currentEndMarker = null;
     }
     
-
     if (currentSearchMarker) {
         map.geoObjects.remove(currentSearchMarker);
         currentSearchMarker = null;
     }
     
-
     DOMCache.routeInfo.style.display = 'none';
     
-
     DOMCache.searchResults.style.display = 'none';
     
-
     DOMCache.searchInput.value = '';
     
-
     if (map) {
         map.setCenter(currentCenter, currentZoom);
     }
 }
-
 
 function showLoading(show, message = 'Загружаем...') {
     const loadingElement = DOMCache.loading;
@@ -566,35 +450,48 @@ function showLoading(show, message = 'Загружаем...') {
     }
 }
 
-
 function showError(message) {
-    showNotification(message, 'error');
+    console.error(message);
+    alert(message);
 }
 
+function toggleProjectMode() {
+    isSingleProjectMode = !isSingleProjectMode;
+    
+    if (DOMCache.projectModeSwitch) {
+        if (isSingleProjectMode) {
+            DOMCache.projectModeSwitch.classList.add('single-project');
+        } else {
+            DOMCache.projectModeSwitch.classList.remove('single-project');
+        }
+    }
+    
+    updateProjectInfo();
+    
+    console.log(`Режим проектов изменен на: ${isSingleProjectMode ? 'Один проект' : 'Все проекты'}`);
+}
+
+function getProjectMode() {
+    return isSingleProjectMode ? 'single' : 'all';
+}
 
 function setupEventListeners() {
-
     if (DOMCache.searchBtn) {
         DOMCache.searchBtn.addEventListener('click', performSearch);
     }
     
-
     if (DOMCache.buildRouteBtn) {
         DOMCache.buildRouteBtn.addEventListener('click', buildRoute);
     }
     
-
-
     if (DOMCache.clearRouteBtn) {
         DOMCache.clearRouteBtn.addEventListener('click', clearRoute);
     }
     
-
     if (DOMCache.changeProjectBtn) {
         DOMCache.changeProjectBtn.addEventListener('click', showProjectModal);
     }
     
-
     if (DOMCache.searchInput) {
         DOMCache.searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -603,7 +500,6 @@ function setupEventListeners() {
         });
     }
     
-
     const setAsStartPointBtn = document.getElementById('setAsStartPoint');
     if (setAsStartPointBtn) {
         setAsStartPointBtn.addEventListener('click', () => setStoreAsRoutePoint('start'));
@@ -613,12 +509,19 @@ function setupEventListeners() {
     if (setAsEndPointBtn) {
         setAsEndPointBtn.addEventListener('click', () => setStoreAsRoutePoint('end'));
     }
+    
+    if (DOMCache.projectModeSwitch) {
+        DOMCache.projectModeSwitch.addEventListener('click', toggleProjectMode);
+    }
 }
-
 
 window.selectProject = selectProject;
 window.showProjectModal = showProjectModal;
-
+window.toggleProjectMode = toggleProjectMode;
+window.getProjectMode = getProjectMode;
+window.loadSingleProjectData = loadSingleProjectData;
+window.loadAllProjectsData = loadAllProjectsData;
+window.createSingleProjectMarkers = createSingleProjectMarkers;
 
 
 
@@ -629,7 +532,6 @@ function createMapPlaceholder() {
         return;
     }
     
-
     mapContainer.innerHTML = `
         <div style="
             display: flex;
@@ -670,7 +572,6 @@ function createMapPlaceholder() {
 
 
 
-
 function showProjectModal() {
     if (isModalOpen) return;
     
@@ -682,21 +583,20 @@ function showProjectModal() {
         return;
     }
     
-
     selectedProject = null;
     selectedCity = null;
     
-
+    isSingleProjectMode = false;
+    if (DOMCache.projectModeSwitch) {
+        DOMCache.projectModeSwitch.classList.remove('single-project');
+    }
+    
     hideStoreInfo();
     
-
     isLoadingProject = false;
     isLoadingData = false;
     isLoadingProjectData = false;
-    
-
-    
-
+ 
     setupModalEventListeners();
 }
 
@@ -708,16 +608,13 @@ function hideProjectModal() {
 }
 
 function setupModalEventListeners() {
-
     const projectCards = document.querySelectorAll('.project-card');
     
     projectCards.forEach((card, index) => {
         const projectName = card.dataset.project;
     
-
         card.removeEventListener('click', card._projectClickHandler);
         
-
         card._projectClickHandler = () => {
 
             selectProject(projectName);
@@ -726,9 +623,7 @@ function setupModalEventListeners() {
         card.addEventListener('click', card._projectClickHandler);
     });
     
-
     
-
     const backToProjectBtn = document.getElementById('backToProjectBtn');
     
     if (backToProjectBtn) {
@@ -737,29 +632,21 @@ function setupModalEventListeners() {
 }
 
 function selectProject(project) {
-
     if (selectedProject && selectedProject !== project) {
-
-
-        
-
         hideStoreInfo();
     }
     
     selectedProject = project;
     
-
     document.querySelectorAll('.project-card').forEach(card => {
         card.classList.remove('selected');
     });
     
-
     const selectedCard = document.querySelector(`[data-project="${project}"]`);
     if (selectedCard) {
         selectedCard.classList.add('selected');
     }
     
-
     const citySelection = document.getElementById('citySelection');
     const backToProjectBtn = document.getElementById('backToProjectBtn');
     const continueBtn = document.getElementById('continueBtn');
@@ -771,12 +658,10 @@ function selectProject(project) {
         continueBtn.textContent = 'Начать работу';
     }
     
-
     if (continueBtn) {
         continueBtn.onclick = null;
     }
     
-
     const citySelectionTitle = document.getElementById('citySelectionTitle');
     const citySearchInputElement = document.getElementById('citySearchInput');
     
@@ -790,27 +675,22 @@ function selectProject(project) {
         }
     }
     
-
     citiesData = [];
     const cityGrid = document.getElementById('cityGrid');
     if (cityGrid) {
         cityGrid.innerHTML = '';
     }
     
-
     const citySearchInput = document.getElementById('citySearchInput');
     if (citySearchInput) {
-
         if (citySearchInput._searchHandler) {
             citySearchInput.removeEventListener('input', citySearchInput._searchHandler);
         }
         
-
         citySearchInput._searchHandler = (e) => filterCities(e.target.value);
         citySearchInput.addEventListener('input', citySearchInput._searchHandler);
     }
     
-
     loadCitiesForProject(project).catch(error => {
 
 
@@ -821,32 +701,26 @@ function backToProjectSelection() {
     selectedProject = null;
     selectedCity = null;
     
-
     hideStoreInfo();
     
-
     document.getElementById('citySelection').style.display = 'none';
     document.getElementById('backToProjectBtn').style.display = 'none';
     document.getElementById('continueBtn').disabled = true;
     document.getElementById('continueBtn').textContent = 'Начать работу';
     
-
     const continueBtn = document.getElementById('continueBtn');
     continueBtn.onclick = null;
     
-
     document.querySelectorAll('.project-card').forEach(card => {
         card.classList.remove('selected');
     });
     
-
     const citySelectionTitle = document.getElementById('citySelectionTitle');
     if (citySelectionTitle) {
         citySelectionTitle.innerHTML = '🏙️ Выберите город';
     }
     document.getElementById('citySearchInput').placeholder = 'Поиск города...';
     
-
     document.getElementById('citySearchInput').value = '';
     filterCities('');
 }
@@ -858,13 +732,10 @@ async function loadCitiesForProject(project) {
         return;
     }
     
-
     if (isLoadingProject) {
         return;
     }
     
-
-
     if (projectDataCache.has(project)) {
         const cachedData = projectDataCache.get(project);
         citiesData = cachedData.cities;
@@ -875,18 +746,15 @@ async function loadCitiesForProject(project) {
         return;
     }
     
-
     isLoadingProject = true;
     
     try {
-
         const { storesData, citiesData: projectCities } = await loadDataFromGoogleSheets(project);
         
         if (projectCities && projectCities.length > 0) {
             citiesData = projectCities;
             displayCities(citiesData);
             
-
         } else {
             loadTestCities(project);
         }
@@ -894,25 +762,21 @@ async function loadCitiesForProject(project) {
     } catch (error) {
         loadTestCities(project);
     } finally {
-
         isLoadingProject = false;
     }
 }
 
-
 function loadDataFromGoogleScript(scriptUrl, project) {
+    
     return new Promise((resolve, reject) => {
-
         const allSheets = ['lenta', 'magnet', 'vkusvill'];
         const loadedData = {};
         let completedSheets = 0;
         
-
         const loadSheet = (sheetName) => {
             const callbackName = 'callback_' + Math.random().toString(36).substr(2, 9);
             const url = `${scriptUrl}?sheet=${sheetName}&callback=${callbackName}`;
             
-
             const timeout = setTimeout(() => {
                 loadedData[sheetName] = [];
                 completedSheets++;
@@ -941,23 +805,18 @@ function loadDataFromGoogleScript(scriptUrl, project) {
             document.head.appendChild(script);
         };
         
-
         const checkCompletion = () => {
             if (completedSheets === allSheets.length) {
-
                 allSheets.forEach(sheetName => {
                     if (loadedData[sheetName] && loadedData[sheetName].length > 0) {
-
                         const cities = extractUniqueCities(loadedData[sheetName], sheetName);
                         
-
                         projectDataCache.set(sheetName, {
                             cities: cities,
                             stores: loadedData[sheetName],
                             timestamp: Date.now()
                         });
                     } else {
-
                         projectDataCache.set(sheetName, {
                             cities: [],
                             stores: [],
@@ -966,19 +825,16 @@ function loadDataFromGoogleScript(scriptUrl, project) {
                     }
                 });
                 
-
                 const requestedData = loadedData[project] || [];
                 resolve(requestedData);
             }
         };
         
-
         allSheets.forEach(sheetName => {
             loadSheet(sheetName);
         });
     });
 }
-
 
 function extractUniqueCities(rawData, project) {
     const field = project === 'magnet' ? 'area' : 'city';
@@ -1013,7 +869,6 @@ function extractUniqueCities(rawData, project) {
     
     return Array.from(locations.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
-
 
 function loadTestCities(project) {
     const testLocations = {
@@ -1056,14 +911,12 @@ function displayCities(cities) {
         const cityItem = document.createElement('div');
         cityItem.className = 'city-item';
         
-
         if (typeof city === 'object' && city.name) {
             cityItem.textContent = city.name;
         } else {
             cityItem.textContent = city;
         }
         
-
         cityItem.addEventListener('click', (event) => {
             selectCity(city, event);
         });
@@ -1073,14 +926,11 @@ function displayCities(cities) {
     });
 }
 
-
 function showLoadingIndicator(message = 'Загружаем города...') {
     const cityGrid = document.getElementById('cityGrid');
     if (cityGrid) {
-
         cityGrid.style.display = 'none';
         
-
         const loadingOverlay = document.createElement('div');
         loadingOverlay.className = 'loading-overlay';
         loadingOverlay.innerHTML = `
@@ -1090,7 +940,6 @@ function showLoadingIndicator(message = 'Загружаем города...') {
             </div>
         `;
         
-
         const citySelection = document.getElementById('citySelection');
         if (citySelection) {
             citySelection.appendChild(loadingOverlay);
@@ -1098,15 +947,12 @@ function showLoadingIndicator(message = 'Загружаем города...') {
     }
 }
 
-
 function hideLoadingIndicator() {
     const cityGrid = document.getElementById('cityGrid');
     if (cityGrid) {
-
         cityGrid.style.display = 'grid';
     }
     
-
     const loadingOverlay = document.querySelector('.loading-overlay');
     if (loadingOverlay) {
         loadingOverlay.remove();
@@ -1114,9 +960,7 @@ function hideLoadingIndicator() {
 }
 
 function selectCity(city, event) {
-
     if (!selectedProject) {
-
         const activeProjectCard = document.querySelector('.project-card.selected');
         if (activeProjectCard) {
             const projectName = activeProjectCard.dataset.project;
@@ -1126,25 +970,20 @@ function selectCity(city, event) {
         }
     }
     
-
-
     if (typeof city === 'object' && city.name) {
         selectedCity = city.name;
     } else {
         selectedCity = city;
     }
     
-
     document.querySelectorAll('.city-item').forEach(item => {
         item.classList.remove('selected');
     });
     
-
     if (event && event.target) {
         event.target.classList.add('selected');
     }
     
-
     const continueBtn = document.getElementById('continueBtn');
     if (!continueBtn) {
         return;
@@ -1153,64 +992,185 @@ function selectCity(city, event) {
     continueBtn.disabled = false;
     continueBtn.textContent = 'Начать работу';
     
-
     continueBtn.onclick = function() {
-
         continueBtn.disabled = true;
         continueBtn.innerHTML = '<span class="loading-spinner-small"></span> Инициализируем карту...';
         
-        loadProjectDataForMap();
+        if (isSingleProjectMode) {
+            loadSingleProjectData();
+        } else {
+            loadAllProjectsData();
+        }
     };
 }
 
 function filterCities(searchTerm) {
     const filteredCities = citiesData.filter(city => {
-
         const cityName = typeof city === 'object' && city.name ? city.name : city;
         return cityName.toLowerCase().includes(searchTerm.toLowerCase());
     });
     displayCities(filteredCities);
 }
 
-async function loadProjectDataForMap() {
-
+async function loadSingleProjectData() {
     if (isLoadingProjectData) {
         return;
     }
     
-
     isLoadingProjectData = true;
     
+    try {
+        if (!selectedProject || !selectedCity) {
+            console.error('Не выбран проект или город');
+            return;
+        }
+        
+        localStorage.setItem('selectedProject', selectedProject);
+        localStorage.setItem('selectedCity', selectedCity);
+        
+        hideProjectModal();
+        updateProjectInfo();
+        
+        let storesData, projectCities;
+        
+        if (projectDataCache.has(selectedProject)) {
+            const cachedData = projectDataCache.get(selectedProject);
+            storesData = cachedData.stores;
+            projectCities = cachedData.cities;
+        } else {
+            const result = await loadDataFromGoogleSheets(selectedProject);
+            storesData = result.storesData;
+            projectCities = result.citiesData;
+            
+            projectDataCache.set(selectedProject, {
+                stores: result.storesData,
+                cities: result.citiesData,
+                lastUpdated: Date.now()
+            });
+        }
+        
+        if (storesData.length === 0) {
+            return;
+        }
+        
+        showLoading(true, `Центрируем карту на ${selectedCity}...`);
+        
+        const continueButton = document.getElementById('continueBtn');
+        if (continueButton) {
+            continueButton.innerHTML = '<span class="loading-spinner-small"></span> Центрируем карту...';
+        }
+        
+        centerMapOnCity(selectedCity);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        await createSingleProjectMarkers(selectedProject, selectedCity);
+        
+        if (continueButton) {
+            continueButton.innerHTML = '<span class="loading-spinner-small"></span> Готово!';
+            setTimeout(() => {
+                continueButton.textContent = 'Начать работу';
+            }, 2000);
+        }
+        
+    } catch (error) {
+        console.error('Ошибка загрузки данных одного проекта:', error);
+        showError('Ошибка загрузки данных проекта');
+    } finally {
+        isLoadingProjectData = false;
+    }
+}
 
+async function loadAllProjectsData() {
+    if (isLoadingProjectData) {
+        return;
+    }
+    
+    isLoadingProjectData = true;
+    
+    try {
+        if (!selectedProject || !selectedCity) {
+            console.error('Не выбран проект или город');
+            return;
+        }
+        
+        localStorage.setItem('selectedProject', selectedProject);
+        localStorage.setItem('selectedCity', selectedCity);
+        
+        hideProjectModal();
+        updateProjectInfo();
+        
+        const allProjects = ['lenta', 'magnet', 'vkusvill'];
+        
+        for (const project of allProjects) {
+            if (!projectDataCache.has(project)) {
+                const result = await loadDataFromGoogleSheets(project);
+                projectDataCache.set(project, {
+                    stores: result.storesData,
+                    cities: result.citiesData,
+                    lastUpdated: Date.now()
+                });
+            } else {
+            }
+        }
+        
+        showLoading(true, `Центрируем карту на ${selectedCity}...`);
+        
+        const continueButton = document.getElementById('continueBtn');
+        if (continueButton) {
+            continueButton.innerHTML = '<span class="loading-spinner-small"></span> Центрируем карту...';
+        }
+        
+        centerMapOnCity(selectedCity);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const cityData = findCityCoordinates(selectedCity);
+        if (cityData && cityData.coordinates) {
+            await createAllProjectMarkersByCoordinates(cityData.coordinates, selectedCity);
+        }
+        
+        if (continueButton) {
+            continueButton.innerHTML = '<span class="loading-spinner-small"></span> Готово!';
+            setTimeout(() => {
+                continueButton.textContent = 'Начать работу';
+            }, 2000);
+        }
+        
+    } catch (error) {
+        console.error('Ошибка загрузки данных всех проектов:', error);
+        showError('Ошибка загрузки данных проектов');
+    } finally {
+        isLoadingProjectData = false;
+    }
+}
+
+async function loadProjectDataForMap() {
+    if (isLoadingProjectData) {
+        return;
+    }
+    
+    isLoadingProjectData = true;
+    
     const continueButton = document.getElementById('continueBtn');
     
     try {
-
         const continueBtn = document.getElementById('continueBtn');
         if (continueBtn) {
             continueBtn.disabled = false;
             continueBtn.textContent = 'Начать работу';
         }
         
-
-        
         if (!selectedProject || !selectedCity) {
     
             return;
         }
         
-
         localStorage.setItem('selectedProject', selectedProject);
         localStorage.setItem('selectedCity', selectedCity);
         
-
         hideProjectModal();
         
-
         updateProjectInfo();
         
-
-
         let storesData, projectCities;
         
         if (projectDataCache.has(selectedProject)) {
@@ -1219,7 +1179,6 @@ async function loadProjectDataForMap() {
             projectCities = cachedData.cities;
             
         } else {
-
             const result = await loadDataFromGoogleSheets(selectedProject);
             storesData = result.storesData;
             projectCities = result.citiesData;
@@ -1230,29 +1189,22 @@ async function loadProjectDataForMap() {
             return;
         }
         
-
         showLoading(true, `Центрируем карту на ${selectedCity}...`);
         
-
         if (continueButton) {
             continueButton.innerHTML = '<span class="loading-spinner-small"></span> Центрируем карту...';
         }
         
-
         centerMapOnCity(selectedCity);
         
-
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-
         const projectName = getProjectDisplayName(selectedProject);
         const locationType = selectedProject === 'magnet' ? 'области' : 'города';
 
         
-
         loadProjectDataForCity(selectedProject, selectedCity);
         
-
         if (continueButton) {
             continueButton.innerHTML = '<span class="loading-spinner-small"></span> Готово!';
             setTimeout(() => {
@@ -1261,58 +1213,119 @@ async function loadProjectDataForMap() {
             }, 1000);
         }
         
-
         showLoading(false);
         
     } catch (error) {
-
-
-
         showLoading(false);
     } finally {
-
         isLoadingProjectData = false;
     }
 }
 
-
 async function loadProjectDataForCity(project, city) {
     try {
-
         const cityData = findCityCoordinates(city);
         if (!cityData || !cityData.coordinates) {
-            console.error('Координаты города не найдены');
             return;
         }
 
-
         await createAllProjectMarkersByCoordinates(cityData.coordinates, city);
     } catch (error) {
-        console.error('Ошибка загрузки данных проекта:', error);
     }
 }
 
+async function createSingleProjectMarkers(project, city) {
+    try {
+        clearMapMarkers();
+        
+        if (!projectDataCache.has(project)) {
+            return;
+        }
+        
+        const projectData = projectDataCache.get(project);
+        const stores = projectData.stores || [];
+                
+        if (project === 'magnet' && stores.length > 0) {
+            const uniqueAreas = [...new Set(stores.map(store => store.area).filter(area => area))].slice(0, 10);
+        } else if (stores.length > 0) {
+            const uniqueCities = [...new Set(stores.map(store => store.city).filter(city => city))].slice(0, 10);
+        }
+        
+        const cityStores = stores.filter(store => {
+            if (project === 'magnet') {
+                if (!store.area) {
+                    return false;
+                }
+                const storeArea = store.area.toLowerCase();
+                const searchArea = city.toLowerCase();
+                const matches = storeArea.includes(searchArea) || searchArea.includes(storeArea);
+                
+                if (matches) {
+                }
+                
+                return matches;
+            } else {
+                if (!store.city) {
+                    return false;
+                }
+                return store.city.toLowerCase() === city.toLowerCase();
+            }
+        });
+        
+        
+        if (cityStores.length === 0) {
+            showLoading(false);
+            return;
+        }
+        
+        showLoading(true, `Загрузка магазинов ${project}: 0 из ${cityStores.length}`);
+        
+        const storesByAddress = new Map();
+        
+        for (const store of cityStores) {
+            if (store.fullAddress) {
+                const key = `${store.fullAddress}_${project}`;
+                if (!storesByAddress.has(key)) {
+                    storesByAddress.set(key, { stores: [], address: store.fullAddress, project: project });
+                }
+                storesByAddress.get(key).stores.push(store);
+            }
+        }
+        
+        let processedStores = 0;
+        for (const [key, storeGroup] of storesByAddress) {
+            processedStores++;
+            showLoading(true, `Загрузка магазинов ${project}: ${processedStores} из ${cityStores.length}`);
+            
+            const coordinates = await geocodeFullAddress(storeGroup.address);
+            
+            if (coordinates) {
+                createStoreMarker(coordinates, storeGroup, project);
+            }
+        }
+        
+        showLoading(false);
+        
+    } catch (error) {
+        showLoading(false);
+    }
+}
 
 async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
     try {
-
         clearMapMarkers();
         
-
-        const searchRadius = 100; // 150 км радиус поиска
+        const searchRadius = 100; 
         
-
         const allProjects = ['lenta', 'magnet', 'vkusvill'];
         let totalStores = 0;
         let processedStores = 0;
         
-
         for (const project of allProjects) {
             if (projectDataCache.has(project)) {
                 const projectData = projectDataCache.get(project);
                 const stores = projectData.stores || [];
                 
-
                 const nearbyStores = stores.filter(store => {
                     if (!store.coordinates) return false;
                     
@@ -1332,17 +1345,14 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
             return;
         }
         
-
         showLoading(true, `Загрузка магазинов: 0 из ${totalStores}`);
         
-
         for (const project of allProjects) {
             if (!projectDataCache.has(project)) continue;
             
             const projectData = projectDataCache.get(project);
             const stores = projectData.stores || [];
             
-
             const nearbyStores = stores.filter(store => {
                 if (!store.coordinates) return false;
                 
@@ -1353,7 +1363,6 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
                 return distance <= searchRadius;
             });
             
-
             const storesByAddress = new Map();
             
             for (const store of nearbyStores) {
@@ -1366,22 +1375,18 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
                 }
             }
             
-
             for (const [key, storeGroup] of storesByAddress) {
                 processedStores++;
                 showLoading(true, `Загрузка магазинов: ${processedStores} из ${totalStores}`);
                 
-
                 const coordinates = await geocodeFullAddress(storeGroup.address);
                 
                 if (coordinates) {
-
                     createStoreMarker(coordinates, storeGroup, project);
                 }
             }
         }
         
-
         let allErrors = [];
         for (const project of allProjects) {
             if (!projectDataCache.has(project)) continue;
@@ -1389,7 +1394,6 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
             const projectData = projectDataCache.get(project);
             const stores = projectData.stores || [];
             
-
             const nearbyStores = stores.filter(store => {
                 if (!store.coordinates) return false;
                 
@@ -1400,21 +1404,18 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
                 return distance <= searchRadius;
             });
             
-
             const errors = detectDataErrors(nearbyStores, project);
             if (errors.length > 0) {
                 allErrors = allErrors.concat(errors);
             }
         }
         
-
         if (allErrors.length > 0) {
             setTimeout(() => {
                 showErrorModal(allErrors);
-            }, 1000); // Небольшая задержка для завершения загрузки
+            }, 1000); 
         }
         
-
         showLoading(false);
         
     } catch (error) {
@@ -1423,11 +1424,8 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
     }
 }
 
-
 async function createLentaMarkers(selectedCity) {
     try {
-
-        
 
         if (!projectDataCache.has('lenta')) {
             return;
@@ -1440,17 +1438,14 @@ async function createLentaMarkers(selectedCity) {
             return;
         }
         
-
         const cityStores = stores.filter(store => {
             return store.city && store.city.toLowerCase() === selectedCity.toLowerCase();
         });
         
 
         
-
         clearMapMarkers();
         
-
         const storesByAddress = new Map();
         
         for (const store of cityStores) {
@@ -1461,29 +1456,22 @@ async function createLentaMarkers(selectedCity) {
                 storesByAddress.get(store.fullAddress).push(store);
             }
         }
-    
-
         const totalAddresses = storesByAddress.size;
         let processedAddresses = 0;
         
-
         showLoading(true, `Загрузка адресов: 0 из ${totalAddresses}`);
         
         for (const [address, stores] of storesByAddress) {
-
             processedAddresses++;
             showLoading(true, `Загрузка адресов: ${processedAddresses} из ${totalAddresses}`);
             
-
             const coordinates = await geocodeFullAddress(address);
             
             if (coordinates) {
-
                 createStoreMarker(coordinates, { stores, address }, 'lenta');
                     }
         }
         
-
         showLoading(false);
         
     } catch (error) {
@@ -1491,10 +1479,8 @@ async function createLentaMarkers(selectedCity) {
     }
 }
 
-
 async function createMagnetMarkers(selectedArea) {
     try {
-
         if (!projectDataCache.has('magnet')) {
             return;
         }
@@ -1506,15 +1492,12 @@ async function createMagnetMarkers(selectedArea) {
             return;
         }
         
-
         const areaStores = stores.filter(store => {
             return store.area && store.area.toLowerCase() === selectedArea.toLowerCase();
         });
         
-
         clearMapMarkers();
         
-
         const storesByAddress = new Map();
         
         for (const store of areaStores) {
@@ -1526,28 +1509,22 @@ async function createMagnetMarkers(selectedArea) {
             }
         }
     
-
         const totalAddresses = storesByAddress.size;
         let processedAddresses = 0;
         
-
         showLoading(true, `Загрузка адресов: 0 из ${totalAddresses}`);
         
         for (const [address, stores] of storesByAddress) {
-
             processedAddresses++;
             showLoading(true, `Загрузка адресов: ${processedAddresses} из ${totalAddresses}`);
             
-
             const coordinates = await geocodeFullAddress(address);
             
             if (coordinates) {
-
                 createStoreMarker(coordinates, { stores, address }, 'magnet');
             }
         }
         
-
         showLoading(false);
         
     } catch (error) {
@@ -1555,10 +1532,8 @@ async function createMagnetMarkers(selectedArea) {
     }
 }
 
-
 async function createVkusvillMarkers(selectedCity) {
     try {
-
         if (!projectDataCache.has('vkusvill')) {
             return;
         }
@@ -1570,15 +1545,12 @@ async function createVkusvillMarkers(selectedCity) {
             return;
         }
         
-
         const areaStores = stores.filter(store => {
             return store.city && store.city.toLowerCase() === selectedCity.toLowerCase();
         });
         
-
         clearMapMarkers();
         
-
         const storesByAddress = new Map();
         
         for (const store of areaStores) {
@@ -1590,35 +1562,29 @@ async function createVkusvillMarkers(selectedCity) {
             }
         }
     
-
         const totalAddresses = storesByAddress.size;
         let processedAddresses = 0;
         
-
+ адресов
         showLoading(true, `Загрузка адресов: 0 из ${totalAddresses}`);
         
         for (const [address, stores] of storesByAddress) {
-
             processedAddresses++;
             showLoading(true, `Загрузка адресов: ${processedAddresses} из ${totalAddresses}`);
             
-
             const coordinates = await geocodeFullAddress(address);
             
             if (coordinates) {
-
                 createStoreMarker(coordinates, { stores, address }, 'vkusvill');
             }
         }
         
-
         showLoading(false);
         
     } catch (error) {
         showLoading(false);
     }
 }
-
 
 function clearMapMarkers() {
     if (map && map.geoObjects) {
@@ -1626,58 +1592,45 @@ function clearMapMarkers() {
     }
 }
 
-
 function createStoreMarker(coordinates, storeData, projectType) {
     try {
         if (!map || !coordinates) {
             return;
         }
         
-
         let iconContent = '🏪';
         let hintContent = storeData.address || storeData.fullAddress;
         
-
         const projectName = getProjectDisplayName(projectType);
         hintContent = `${projectName}\n${hintContent}`;
         
         if (storeData.stores && storeData.stores.length > 1) {
-
             iconContent = storeData.stores.length;
             hintContent = `${projectName}\n${storeData.stores.length} вакансий\n${storeData.address}`;
         } else if (storeData.vacancy) {
-
             iconContent = storeData.vacancy;
         }
         
-
         const marker = new window.ymaps.Placemark([coordinates.lat, coordinates.lon], {
-
             iconContent: iconContent,
             hintContent: hintContent
         }, {
-
             preset: 'islands#blueDotIcon',
             iconColor: getProjectColor(projectType)
         });
         
-
         map.geoObjects.add(marker);
         
-
         marker.events.add('click', function() {
             showStoreInfo(storeData, projectType);
         });
         
     } catch (error) {
-
     }
 }
 
-
 function showStoreInfo(storeData, projectType) {
     try {
-
         const storeTkElement = document.getElementById('storeTk');
         const storeAddressElement = document.getElementById('storeAddress');
         const storeDetailsElement = document.getElementById('storeDetails');
@@ -1687,7 +1640,6 @@ function showStoreInfo(storeData, projectType) {
             return;
         }
         
-
         const projectName = getProjectDisplayName(projectType);
         
         if (storeData.stores && storeData.stores.length > 0) {
@@ -1699,7 +1651,6 @@ function showStoreInfo(storeData, projectType) {
                 if (projectType === 'magnet') {
                     storeTkElement.textContent = `Потребность: ${firstStore.need || '-'}`;
                 } else if (projectType === 'vkusvill') {
-
                     storeTkElement.textContent = '';
                 } else {
                     storeTkElement.textContent = `ТК: ${firstStore.tk || '-'}`;
@@ -1713,7 +1664,6 @@ function showStoreInfo(storeData, projectType) {
                 if (projectType === 'magnet') {
                     storeTkElement.textContent = `Потребность: ${storeData.need || '-'}`;
                 } else if (projectType === 'vkusvill') {
-
                     storeTkElement.textContent = '';
                 } else {
                     storeTkElement.textContent = `ТК: ${storeData.tk || '-'}`;
@@ -1721,22 +1671,18 @@ function showStoreInfo(storeData, projectType) {
             }
         }
         
-
         if (storeDetailsElement) {
             storeDetailsElement.innerHTML = '';
             
-
             const stores = storeData.stores || [storeData];
             stores.forEach((store, index) => {
                 const vacancyItem = document.createElement('div');
                 vacancyItem.className = 'detail-item';
                 
-
                 const isMagnet = projectType === 'magnet';
                 const isVkusvill = projectType === 'vkusvill';
                 
                 if (isMagnet) {
-
                     let tariffBlocks = '';
                     
                     if (store.auto && store.auto.toLowerCase() === 'да' && store.tariffAuto !== '#N/A') {
@@ -1787,16 +1733,13 @@ function showStoreInfo(storeData, projectType) {
                         `;
                     }
                     
-
                     if (tariffBlocks) {
                         storeDetailsElement.insertAdjacentHTML('beforeend', tariffBlocks);
                     } else {
                     }
                     
-
                     return;
                 } else if (isVkusvill) {
-
                     vacancyItem.innerHTML = `
                         <div class="vacancy-title">Вакансия ${index + 1}</div>
                         <div class="vacancy-details">
@@ -1806,7 +1749,6 @@ function showStoreInfo(storeData, projectType) {
                         </div>
                     `;
                 } else {
-
                     vacancyItem.innerHTML = `
                         <div class="vacancy-title">Вакансия ${index + 1}</div>
                         <div class="vacancy-details">
@@ -1821,33 +1763,27 @@ function showStoreInfo(storeData, projectType) {
             });
         }
         
-
         panel.style.display = 'block';
         panel.classList.add('show');
     } catch (error) {
-
     }
 }
-
 
 function hideStoreInfo() {
     try {
         const panel = document.getElementById('storeInfoPanel');
         panel.classList.remove('show');
-
                 setTimeout(() => {
             panel.style.display = 'none';
         }, 300);    } catch (error) {
-
     }
 }
 
-
 function getProjectColor(projectType) {
     const colors = {
-        'lenta': '#45b7d1',      // Синий для Ленты
-        'magnet': '#ff6b6b',     // Красный для Магнита
-        'vkusvill': '#008000'    // Зеленый для ВкусВилла
+        'lenta': '#45b7d1',      // Синий 
+        'magnet': '#ff6b6b',     // Красный 
+        'vkusvill': '#008000'    // Зеленый 
     };
     
     return colors[projectType] || '#666666';
@@ -1862,18 +1798,15 @@ function getProjectDisplayName(project) {
     return projectNames[project] || project;
 }
 
-
 function centerMapOnCity(cityName) {
     if (!map || !cityName) {
         return;
     }
 
     try {
-
         const cityData = findCityCoordinates(cityName);
         
         if (cityData && cityData.coordinates) {
-
             map.setCenter(cityData.coordinates, 10, {
                 duration: 800,
                 timingFunction: 'ease'
@@ -1883,7 +1816,6 @@ function centerMapOnCity(cityName) {
             return;
         }
         
-
         const moscowCoords = [55.7558, 37.6176];
         map.setCenter(moscowCoords, 10);
         
@@ -1893,9 +1825,7 @@ function centerMapOnCity(cityName) {
     }
 }
 
-
 function findCityCoordinates(cityName) {
-
     const cityData = citiesData.find(city => city.name === cityName);
     
     if (cityData && cityData.coordinates) {
@@ -1905,19 +1835,16 @@ function findCityCoordinates(cityName) {
     return null;
 }
 
-
 function addCityMarker(coords, cityName) {
     if (!map || !window.ymaps || !window.ymaps.Placemark) {
         return;
     }
     
     try {
-
         if (window.cityMarker) {
             map.geoObjects.remove(window.cityMarker);
         }
         
-
         const marker = new window.ymaps.Placemark(coords, {
             balloonContent: `<strong>${cityName}</strong><br>Выбранный город`
         }, {
@@ -1925,15 +1852,12 @@ function addCityMarker(coords, cityName) {
             iconColor: '#3b82f6'
         });
         
-
         map.geoObjects.add(marker);
         window.cityMarker = marker;
         
     } catch (error) {
-
     }
 }
-
 
 function updateProjectInfo() {
     const projectInfo = document.getElementById('currentProjectInfo');
@@ -1948,11 +1872,19 @@ function updateProjectInfo() {
         const projectName = getProjectDisplayName(selectedProject);
         const locationType = selectedProject === 'magnet' ? 'области' : 'города';
         
-        projectInfo.innerHTML = `
-            <div class="project-name">Все проекты</div>
-            <div class="city-name">${locationType}: ${selectedCity}</div>
-            <div class="project-note">Показываются магазины всех проектов в радиусе 100 км</div>
-        `;
+        if (isSingleProjectMode) {
+            projectInfo.innerHTML = `
+                <div class="project-name">${projectName}</div>
+                <div class="city-name">${locationType}: ${selectedCity}</div>
+                <div class="project-note">Показываются магазины выбранного проекта в выбранном городе/области</div>
+            `;
+        } else {
+            projectInfo.innerHTML = `
+                <div class="project-name">Все проекты</div>
+                <div class="city-name">${locationType}: ${selectedCity}</div>
+                <div class="project-note">Показываются магазины всех проектов в радиусе 100 км</div>
+            `;
+        }
         
         changeProjectBtn.style.display = 'inline-block';
         updateCacheBtn.style.display = 'inline-block';
@@ -1963,6 +1895,9 @@ function updateProjectInfo() {
     }
 }
 
+async function buildRouteSmart(startCoords, endCoords, profile) {
+    return createSimpleRoute(startCoords, endCoords);
+}
 
 function createSimpleRoute(startCoords, endCoords) {
     const distance = calculateDistance(startCoords, endCoords);
@@ -1981,7 +1916,7 @@ function createSimpleRoute(startCoords, endCoords) {
             geometry: {
                 type: 'LineString',
                 coordinates: [
-                    [startCoords[1], startCoords[0]], // [lon, lat]
+                    [startCoords[1], startCoords[0]], 
                     [endCoords[1], endCoords[0]]
                 ]
             }
@@ -1989,9 +1924,8 @@ function createSimpleRoute(startCoords, endCoords) {
     };
 }
 
-
 function calculateDistance(coord1, coord2) {
-    const R = 6371; // Радиус Земли в км
+    const R = 6371; 
     const dLat = (coord2[0] - coord1[0]) * Math.PI / 180;
     const dLon = (coord2[1] - coord1[1]) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -2001,20 +1935,11 @@ function calculateDistance(coord1, coord2) {
     return R * c;
 }
 
-
 function calculateDuration(coord1, coord2) {
     const distance = calculateDistance(coord1, coord2);
-    const speed = 60; // км/ч
-    return distance / speed; // часы
+    const speed = 60; 
+    return distance / speed; 
 }
-
-
-async function buildRouteSmart(startCoords, endCoords, profile) {
-
-
-    return createSimpleRoute(startCoords, endCoords);
-}
-
 
 async function geocodeAddress(address) {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=ru&addressdetails=1&accept-language=ru`;
@@ -2048,7 +1973,6 @@ async function geocodeAddress(address) {
     }
 }
 
-
 async function geocodeFullAddress(fullAddress) {
     try {
         if (!fullAddress || fullAddress.trim() === '') {
@@ -2060,7 +1984,6 @@ async function geocodeFullAddress(fullAddress) {
             return await geocodeAddress(fullAddress);
         }
         
-
         const result = await window.ymaps.geocode(fullAddress, {
             results: 1,
             kind: 'house'
@@ -2080,64 +2003,46 @@ async function geocodeFullAddress(fullAddress) {
         return null;
         
     } catch (error) {
-
-
         return await geocodeAddress(fullAddress);
     }
 }
 
-
 async function buildRoute() {
-
     openInYandexMaps();
 }
 
 
-
 function setStoreAsRoutePoint(pointType) {
     try {
-
         const storeAddressElement = document.getElementById('storeAddress');
         if (!storeAddressElement) {
-    
             return;
         }
         
         const storeAddress = storeAddressElement.textContent.trim();
         if (!storeAddress || storeAddress === '-') {
-
             return;
         }
         
-
         const inputFieldId = pointType === 'start' ? 'startPoint' : 'endPoint';
         const inputField = document.getElementById(inputFieldId);
         
         if (!inputField) {
-
             return;
         }
         
-
         inputField.value = storeAddress;
         
-
         const pointName = pointType === 'start' ? 'начальной' : 'конечной';
-
         
-
         inputField.focus();
         
     } catch (error) {
-
-
     }
 }
 
-
 function setSearchLocationAsRoutePoint(pointType, address) {
     try {
-
         const inputFieldId = pointType === 'start' ? 'startPoint' : 'endPoint';
         const inputField = document.getElementById(inputFieldId);
         
@@ -2146,17 +2051,12 @@ function setSearchLocationAsRoutePoint(pointType, address) {
             return;
         }
         
-
         inputField.value = address;
         
-
         const pointName = pointType === 'start' ? 'начальной' : 'конечной';
-
-        
 
         inputField.focus();
         
-
         if (currentSearchMarker && currentSearchMarker.balloon) {
             currentSearchMarker.balloon.close();
         }
@@ -2167,9 +2067,7 @@ function setSearchLocationAsRoutePoint(pointType, address) {
     }
 }
 
-
 window.setSearchLocationAsRoutePoint = setSearchLocationAsRoutePoint;
-
 
 function detectDataErrors(storesData, projectType) {
     const errors = [];
@@ -2177,7 +2075,6 @@ function detectDataErrors(storesData, projectType) {
     storesData.forEach((store, index) => {
         const storeErrors = [];
         
-
         if (projectType === 'lenta') {
             if (store.tk === '#N/A') storeErrors.push('ТК');
             if (store.vacancy === '#N/A') storeErrors.push('Вакансия');
@@ -2206,11 +2103,9 @@ function detectDataErrors(storesData, projectType) {
     return errors;
 }
 
-
 function showErrorModal(errors) {
     if (errors.length === 0) return;
     
-
     const errorModal = document.createElement('div');
     errorModal.className = 'error-modal-overlay';
     errorModal.innerHTML = `
@@ -2240,12 +2135,10 @@ function showErrorModal(errors) {
     
     document.body.appendChild(errorModal);
     
-
     setTimeout(() => {
         errorModal.classList.add('show');
     }, 10);
 }
-
 
 function closeErrorModal() {
     const errorModal = document.querySelector('.error-modal-overlay');
@@ -2256,6 +2149,5 @@ function closeErrorModal() {
         }, 300);
     }
 }
-
 
 window.closeErrorModal = closeErrorModal;
