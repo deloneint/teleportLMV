@@ -48,7 +48,7 @@ function getOffsetCoordinates(originalLat, originalLon) {
     }
     
     const markersAtPosition = markerPositions.get(key);
-    const offsetDistance = 0.0001; 
+    const offsetDistance = 0.0005; 
     
     if (markersAtPosition.length === 0) {
         markersAtPosition.push({ lat: originalLat, lon: originalLon });
