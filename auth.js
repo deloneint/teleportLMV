@@ -1,4 +1,3 @@
-// Простая система авторизации и регистрации
 class SimpleAuth {
     constructor() {
         this.users = this.loadUsers();
@@ -8,49 +7,47 @@ class SimpleAuth {
         this.init();
     }
 
-    // Инициализация
     init() {
         this.setupEventListeners();
         this.checkExistingSession();
     }
 
-    // Загрузка пользователей из localStorage
     loadUsers() {
         const users = localStorage.getItem('auth_users');
         return users ? JSON.parse(users) : [];
     }
 
-    // Сохранение пользователей в localStorage
+
     saveUsers() {
         localStorage.setItem('auth_users', JSON.stringify(this.users));
     }
 
-    // Настройка обработчиков событий
+
     setupEventListeners() {
         const loginForm = document.getElementById('loginForm');
         const registerForm = document.getElementById('registerForm');
         const switchLink = document.getElementById('switchLink');
         const switchText = document.getElementById('switchText');
 
-        // Обработчик формы входа
+
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleLogin();
         });
 
-        // Обработчик формы регистрации
+
         registerForm.addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleRegister();
         });
 
-        // Переключение между формами
+
         switchLink.addEventListener('click', (e) => {
             e.preventDefault();
             this.toggleForms();
         });
 
-        // Форматирование номера телефона
+
         document.getElementById('phone').addEventListener('input', (e) => {
             e.target.value = this.formatPhone(e.target.value);
         });
@@ -60,7 +57,7 @@ class SimpleAuth {
         });
     }
 
-    // Переключение между формами входа и регистрации
+
     toggleForms() {
         const loginForm = document.getElementById('loginForm');
         const registerForm = document.getElementById('registerForm');
@@ -79,7 +76,7 @@ class SimpleAuth {
             switchText.innerHTML = 'Уже есть аккаунт? <a href="#" id="switchLink">Войти</a>';
         }
 
-        // Обновляем обработчик для новой ссылки
+
         document.getElementById('switchLink').addEventListener('click', (e) => {
             e.preventDefault();
             this.toggleForms();
@@ -89,7 +86,7 @@ class SimpleAuth {
         this.hideNotification();
     }
 
-// Обновленная функция handleLogin
+
 async handleLogin() {
     const phone = document.getElementById('phone').value.trim();
     const password = document.getElementById('password').value;
@@ -107,15 +104,15 @@ async handleLogin() {
     this.setLoading(true);
 
     try {
-        // Используем Supabase для входа
+
         const result = await window.SupabaseAuth.loginUser(phone, password);
         
         if (result.success) {
-            // Создаем сессию
+
             const sessionResult = await window.SupabaseAuth.createSession(result.user.id);
             
             if (sessionResult.success) {
-                // Сохраняем сессию в localStorage
+
                 localStorage.setItem('auth_session', JSON.stringify({
                     sessionId: sessionResult.session.id,
                     userId: result.user.id,
@@ -141,14 +138,14 @@ async handleLogin() {
     }
 }
 
-// Обновленная функция handleRegister
+
 async handleRegister() {
     const fullName = document.getElementById('fullName').value.trim();
     const phone = document.getElementById('regPhone').value.trim();
     const password = document.getElementById('regPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
 
-    // Валидация
+
     if (!fullName) {
         this.showNotification('Введите ФИО', 'error');
         return;
@@ -177,15 +174,15 @@ async handleRegister() {
     this.setLoading(true);
 
     try {
-        // Используем Supabase для регистрации
+
         const result = await window.SupabaseAuth.registerUser(fullName, phone, password);
         
         if (result.success) {
-            // Создаем сессию
+
             const sessionResult = await window.SupabaseAuth.createSession(result.user.id);
             
             if (sessionResult.success) {
-                // Сохраняем сессию в localStorage
+
                 localStorage.setItem('auth_session', JSON.stringify({
                     sessionId: sessionResult.session.id,
                     userId: result.user.id,
@@ -211,7 +208,7 @@ async handleRegister() {
     }
 }
 
-    // Проверка существующей сессии
+
     checkExistingSession() {
         const session = localStorage.getItem('auth_session');
         if (session) {
@@ -221,10 +218,10 @@ async handleRegister() {
                 
                 if (user && sessionData.expires > Date.now()) {
                     this.currentUser = user;
-                    // Перенаправляем на главную страницу
+
                     window.location.href = 'index.html';
                 } else {
-                    // Сессия истекла, удаляем её
+
                     localStorage.removeItem('auth_session');
                 }
             } catch (error) {
@@ -233,7 +230,7 @@ async handleRegister() {
         }
     }
 
-    // Сохранение сессии
+
     saveSession() {
         if (this.currentUser) {
             const sessionData = {
@@ -244,31 +241,31 @@ async handleRegister() {
         }
     }
 
-    // Выход из системы
+
     logout() {
         this.currentUser = null;
         localStorage.removeItem('auth_session');
         window.location.href = 'auth.html';
     }
 
-    // Валидация номера телефона
+
     validatePhone(phone) {
         const phoneRegex = /^\+7\s?\(\d{3}\)\s?\d{3}-\d{2}-\d{2}$/;
         return phoneRegex.test(phone);
     }
 
-    // Форматирование номера телефона
+
     formatPhone(value) {
-        // Удаляем все нецифровые символы
+
         const numbers = value.replace(/\D/g, '');
         
-        // Если начинается с 8, заменяем на +7
+
         if (numbers.startsWith('8') && numbers.length <= 11) {
             const formatted = '+7 (' + numbers.slice(1, 4) + ') ' + numbers.slice(4, 7) + '-' + numbers.slice(7, 9) + '-' + numbers.slice(9, 11);
             return formatted;
         }
         
-        // Если начинается с 7, добавляем +
+
         if (numbers.startsWith('7') && numbers.length <= 11) {
             const formatted = '+7 (' + numbers.slice(1, 4) + ') ' + numbers.slice(4, 7) + '-' + numbers.slice(7, 9) + '-' + numbers.slice(9, 11);
             return formatted;
@@ -277,26 +274,26 @@ async handleRegister() {
         return value;
     }
 
-    // Показать уведомление
+
     showNotification(message, type = 'info') {
         const notification = document.getElementById('notification');
         notification.textContent = message;
         notification.className = `notification ${type}`;
         notification.style.display = 'block';
 
-        // Автоматически скрываем через 5 секунд
+
         setTimeout(() => {
             this.hideNotification();
         }, 5000);
     }
 
-    // Скрыть уведомление
+
     hideNotification() {
         const notification = document.getElementById('notification');
         notification.style.display = 'none';
     }
 
-    // Установить состояние загрузки
+
     setLoading(loading) {
         const forms = document.querySelectorAll('.auth-form');
         const buttons = document.querySelectorAll('.btn-primary');
@@ -319,7 +316,7 @@ async handleRegister() {
         });
     }
 
-    // Очистить формы
+
     clearForms() {
         document.getElementById('loginForm').reset();
         document.getElementById('registerForm').reset();
@@ -328,10 +325,10 @@ async handleRegister() {
 
 
 
-// Инициализация при загрузке страницы
+
 document.addEventListener('DOMContentLoaded', () => {
     new SimpleAuth();
 });
 
-// Экспорт для использования в других файлах
+
 window.SimpleAuth = SimpleAuth;

@@ -1,13 +1,13 @@
-// supabase-client.js
+
 import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js@2'
 
-// Инициализация Supabase клиента
+
 const supabase = createClient(
     window.SUPABASE_CONFIG.url,
     window.SUPABASE_CONFIG.anonKey
 );
 
-// Функция хеширования паролей (простая версия)
+
 async function hashPassword(password) {
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
@@ -16,13 +16,13 @@ async function hashPassword(password) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Функция проверки пароля
+
 async function verifyPassword(password, hash) {
     const hashedPassword = await hashPassword(password);
     return hashedPassword === hash;
 }
 
-// Функция перевода ошибок на русский
+
 function translateError(error) {
     const errorMessages = {
         'PGRST116': 'Пользователь не найден',
@@ -43,17 +43,17 @@ function translateError(error) {
         '22027': 'Неверный формат времени'
     };
     
-    // Если error - это объект с кодом
+
     if (error && error.code) {
         return errorMessages[error.code] || error.message || 'Неизвестная ошибка';
     }
     
-    // Если error - это строка с кодом
+
     if (typeof error === 'string') {
         return errorMessages[error] || error;
     }
     
-    // Если error - это объект с message
+
     if (error && error.message) {
         return error.message;
     }
@@ -61,10 +61,10 @@ function translateError(error) {
     return 'Неизвестная ошибка';
 }
 
-// Функция регистрации пользователя
+
 async function registerUser(fullName, phone, password) {
     try {
-        // Сначала проверяем, существует ли пользователь с таким телефоном
+
         const { data: existingUser, error: checkError } = await supabase
             .from('users')
             .select('id')
@@ -78,7 +78,7 @@ async function registerUser(fullName, phone, password) {
             };
         }
         
-        // Если пользователь не найден, создаем нового
+
         const passwordHash = await hashPassword(password);
         
         const { data, error } = await supabase
@@ -111,7 +111,7 @@ async function registerUser(fullName, phone, password) {
     }
 }
 
-// Функция входа пользователя
+
 async function loginUser(phone, password) {
     try {
         const { data, error } = await supabase
@@ -143,7 +143,7 @@ async function loginUser(phone, password) {
             };
         }
         
-        // Обновляем время последнего входа
+
         const { error: updateError } = await supabase
             .from('users')
             .update({ last_login: new Date().toISOString() })
@@ -163,7 +163,7 @@ async function loginUser(phone, password) {
     }
 }
 
-// Функция создания сессии
+
 async function createSession(userId) {
     try {
         const expiresAt = new Date();
@@ -198,7 +198,7 @@ async function createSession(userId) {
     }
 }
 
-// Функция проверки сессии
+
 async function checkSession(sessionId) {
     try {
         const { data, error } = await supabase
@@ -235,7 +235,7 @@ async function checkSession(sessionId) {
     }
 }
 
-// Функция выхода
+
 async function logoutUser(sessionId) {
     try {
         const { error } = await supabase
@@ -261,7 +261,7 @@ async function logoutUser(sessionId) {
     }
 }
 
-// Экспорт функций
+
 window.SupabaseAuth = {
     registerUser,
     loginUser,

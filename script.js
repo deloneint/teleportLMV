@@ -1,11 +1,11 @@
-// Глобальные переменные
+
 let map = null;
 let selectedProject = null;
 let selectedCity = null;
 let citiesData = [];
 let isModalOpen = false;
 
-// Кэш DOM элементов
+
 const DOMCache = {
     searchInput: null,
     searchBtn: null,
@@ -25,33 +25,33 @@ const DOMCache = {
     loading: null
 };
 
-// Кеш для загруженных данных проектов
+
 let projectDataCache = new Map();
 let isLoadingProject = false;
 let isLoadingData = false; // Флаг для loadDataFromGoogleSheets
 let isLoadingProjectData = false; // Флаг для loadProjectDataForMap
 
-// Переменные для хранения ссылок на объекты маршрута
+
 let currentRouteLine = null;
 let currentStartMarker = null;
 let currentEndMarker = null;
 
-// Переменная для хранения ссылки на маркер поиска
+
 let currentSearchMarker = null;
 
-// Конфигурация загружается из внешнего файла config.min.js
 
-// Функция для предварительной загрузки данных всех проектов
+
+
 async function preloadAllProjectData() {
     try {
         await loadDataFromGoogleScript(CONFIG.googleScript.url, 'lenta');
         startAutoCacheUpdate();
     } catch (error) {
-        // Ошибка не критична, данные будут загружены при необходимости
+
     }
 }
 
-// Функция для автоматического обновления кэша каждый час
+
 function startAutoCacheUpdate() {
     const CACHE_UPDATE_INTERVAL = 60 * 60 * 1000;
     
@@ -75,56 +75,56 @@ function startAutoCacheUpdate() {
                 await updateCache();
             }
         } catch (error) {
-            // Ошибка не критична
+
         }
     }, CACHE_UPDATE_INTERVAL);
 }
 
-// Функция для обновления кэша
+
 async function updateCache() {
     try {
         await loadDataFromGoogleScript(CONFIG.googleScript.url, 'lenta');
     } catch (error) {
-        // Ошибка не критична
+
     }
 }
 
-// Функция для принудительного обновления кэша
+
 async function forceUpdateCache() {
     try {
         projectDataCache.clear();
         await loadDataFromGoogleScript(CONFIG.googleScript.url, 'lenta');
     } catch (error) {
-        // Ошибка не критична
+
     }
 }
 
-// Делаем функцию доступной глобально для отладки
+
 window.forceUpdateCache = forceUpdateCache;
 
-// Функция для загрузки данных из Google таблиц
+
 async function loadDataFromGoogleSheets(project) {
-    // Проверяем, не загружается ли уже
+
     if (isLoadingData) {
         return { storesData: [], citiesData: [] };
     }
     
-    // Устанавливаем флаг загрузки
+
     isLoadingData = true;
     
-    // Показываем индикатор загрузки
+
     showLoading(true, `Загружаем данные всех проектов...`);
     
     try {
-        // Загружаем данные из всех листов (кроме "Магнит Тариф")
-        // Данные автоматически сохраняются в кэше в loadDataFromGoogleScript
+
+
         const rawData = await loadDataFromGoogleScript(CONFIG.googleScript.url, project);
         
         if (rawData && rawData.length > 0) {
-            // Извлекаем уникальные города/области с координатами
+
             const cities = extractUniqueCities(rawData, project);
             
-            // Сохраняем данные в глобальные переменные
+
             window.storesData = rawData;
             citiesData = cities;
             
@@ -137,14 +137,14 @@ async function loadDataFromGoogleSheets(project) {
         console.error('Ошибка загрузки данных из Google таблиц:', error);
         return { storesData: [], citiesData: [] };
     } finally {
-        // Скрываем индикатор загрузки
+
         showLoading(false);
-        // Сбрасываем флаг загрузки
+
         isLoadingData = false;
     }
 }
 
-// Инициализация кэша DOM элементов
+
 function initDOMCache() {
     DOMCache.searchInput = document.getElementById('searchInput');
     DOMCache.searchBtn = document.getElementById('searchBtn');
@@ -164,7 +164,7 @@ function initDOMCache() {
     DOMCache.loading = document.getElementById('loading');
 }
 
-// Проверка авторизации
+
 function checkAuth() {
     const session = localStorage.getItem('auth_session');
     if (!session) {
@@ -188,15 +188,15 @@ function checkAuth() {
     return true;
 }
 
-// Выход из системы
+
 function logout() {
     localStorage.removeItem('auth_session');
     window.location.href = 'auth.html';
 }
 
-// Инициализация приложения
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Проверяем авторизацию
+
     if (!checkAuth()) {
         return;
     }
@@ -205,37 +205,37 @@ document.addEventListener('DOMContentLoaded', function() {
     initMap();
     setupEventListeners();
     
-    // Предварительно загружаем данные всех проектов в фоне
+
     preloadAllProjectData();
     
-    // Добавляем обработчик для кнопки закрытия панели информации о магазине
+
     const closeStoreInfoBtn = document.getElementById('closeStoreInfoBtn');
     if (closeStoreInfoBtn) {
         closeStoreInfoBtn.addEventListener('click', hideStoreInfo);
     }
     
-    // Проверяем, есть ли сохраненные настройки
+
     const savedProject = localStorage.getItem('selectedProject');
     const savedCity = localStorage.getItem('selectedCity');
     
     if (savedProject && savedCity) {
-        // Если есть сохраненные настройки, применяем их
+
         selectedProject = savedProject;
         selectedCity = savedCity;
         updateProjectInfo();
         centerMapOnCity(selectedCity);
     } else {
-        // Показываем модальное окно выбора проекта и города
+
         setTimeout(() => {
             showProjectModal();
         }, 1000);
         
-        // Добавляем обработчики событий для модального окна
+
         setupModalEventListeners();
     }
 });
 
-// Создание карты
+
 function createMap() {
     try {
         map = new window.ymaps.Map('map', {
@@ -244,7 +244,7 @@ function createMap() {
             controls: ['zoomControl', 'fullscreenControl']
         });
         
-        // Добавляем обработчик клика по карте для закрытия информационных окон
+
         map.events.add('click', function (e) {
             if (currentSearchMarker && currentSearchMarker.balloon) {
                 currentSearchMarker.balloon.close();
@@ -255,7 +255,7 @@ function createMap() {
     }
 }
 
-// Инициализация карты
+
 function initMap() {
     if (!CONFIG.yandex.apiKey) {
         createMapPlaceholder();
@@ -285,7 +285,7 @@ function initMap() {
     document.head.appendChild(script);
 }
 
-// Поиск адреса через Nominatim (OpenStreetMap, бесплатно)
+
 async function performSearch() {
     const query = DOMCache.searchInput.value.trim();
     if (!query) {
@@ -321,7 +321,7 @@ async function performSearch() {
     }
 }
 
-// Отображение результатов поиска
+
 function displaySearchResults(results) {
     const resultsContainer = DOMCache.searchResults;
     
@@ -337,7 +337,7 @@ function displaySearchResults(results) {
         </div>`
     ).join('');
     
-    // Добавляем обработчики клика для результатов поиска
+
     resultsContainer.querySelectorAll('.search-result').forEach(item => {
         item.addEventListener('click', function() {
             const location = {
@@ -352,19 +352,19 @@ function displaySearchResults(results) {
     resultsContainer.style.display = 'block';
 }
 
-// Выбор местоположения
+
 function selectLocation(location) {
     if (!map) {
         return;
     }
 
-    // Очищаем старый маркер поиска, если он есть
+
     if (currentSearchMarker) {
         map.geoObjects.remove(currentSearchMarker);
         currentSearchMarker = null;
     }
 
-    // Создаем HTML для информационного окна с кнопками
+
     const infoWindowContent = `
         <div class="search-marker-info">
             <div class="search-marker-address">${location.display_name}</div>
@@ -375,7 +375,7 @@ function selectLocation(location) {
         </div>
     `;
 
-    // Добавляем новый маркер на Яндекс.Карту с информационным окном
+
     currentSearchMarker = new window.ymaps.Placemark(
         [location.lat, location.lon],
         { 
@@ -387,13 +387,13 @@ function selectLocation(location) {
         }
     );
     
-    // Открываем информационное окно при каждом клике на метку
+
     currentSearchMarker.events.add('click', function () {
-        // Принудительно закрываем, если открыто, затем открываем заново
+
         if (currentSearchMarker.balloon.isOpen()) {
             currentSearchMarker.balloon.close();
         }
-        // Небольшая задержка для корректного переоткрытия
+
         setTimeout(() => {
             currentSearchMarker.balloon.open();
         }, 50);
@@ -401,24 +401,24 @@ function selectLocation(location) {
     
     map.geoObjects.add(currentSearchMarker);
 
-    // Центрируем карту
+
     map.setCenter([location.lat, location.lon], 15);
 
-    // Скрываем результаты поиска
+
     DOMCache.searchResults.style.display = 'none';
     
-    // Очищаем поле поиска
+
     DOMCache.searchInput.value = location.display_name;
     
-    // Скрываем информацию о маршруте
+
     DOMCache.routeInfo.style.display = 'none';
 }
 
-// Отображение информации о маршруте
+
 function displayRouteInfo(route) {
     const routeInfo = DOMCache.routeInfo;
     
-    // Форматируем время в удобном виде
+
     const formatTime = (minutes) => {
         if (minutes < 60) {
             return `${minutes} мин`;
@@ -429,7 +429,7 @@ function displayRouteInfo(route) {
         }
     };
     
-    // Форматируем расстояние
+
     const formatDistance = (km) => {
         if (km < 1) {
             return `${Math.round(km * 1000)} м`;
@@ -438,7 +438,7 @@ function displayRouteInfo(route) {
         }
     };
     
-    // Рассчитываем примерное время в пути при разных скоростях
+
     const timeByWalking = Math.round(route.distance * 60 / 5); // 5 км/ч пешком
     const timeByBike = Math.round(route.distance * 60 / 15); // 15 км/ч на велосипеде
     
@@ -473,7 +473,7 @@ function displayRouteInfo(route) {
     routeInfo.style.display = 'block';
 }
 
-// Открытие маршрута в Яндекс.Картах
+
 function openInYandexMaps() {
     const startPoint = DOMCache.startPoint.value.trim();
     const endPoint = DOMCache.endPoint.value.trim();
@@ -486,23 +486,23 @@ function openInYandexMaps() {
     let yandexMapsUrl;
     
     if (startPoint && endPoint) {
-        // Если есть оба адреса - строим маршрут
+
         yandexMapsUrl = `https://yandex.ru/maps/?rtext=${encodeURIComponent(startPoint)}~${encodeURIComponent(endPoint)}&rtt=auto`;
     } else if (startPoint) {
-        // Если есть только начальная точка - показываем её
+
         yandexMapsUrl = `https://yandex.ru/maps/?text=${encodeURIComponent(startPoint)}`;
     } else {
-        // Если есть только конечная точка - показываем её
+
         yandexMapsUrl = `https://yandex.ru/maps/?text=${encodeURIComponent(endPoint)}`;
     }
     
-    // Открываем в новой вкладке
+
     window.open(yandexMapsUrl, '_blank');
 }
 
-// Очистка маршрута и всех данных
+
 function clearRoute() {
-    // Сохраняем текущее положение карты
+
     let currentCenter = [55.7558, 37.6176]; // По умолчанию Москва
     let currentZoom = 10;
     
@@ -511,11 +511,11 @@ function clearRoute() {
         currentZoom = map.getZoom();
     }
     
-    // Очищаем поля ввода
+
     DOMCache.startPoint.value = '';
     DOMCache.endPoint.value = '';
     
-    // Очищаем маршруты через сохраненные ссылки
+
     if (currentRouteLine) {
         map.geoObjects.remove(currentRouteLine);
         currentRouteLine = null;
@@ -531,28 +531,28 @@ function clearRoute() {
         currentEndMarker = null;
     }
     
-    // Очищаем маркер поиска
+
     if (currentSearchMarker) {
         map.geoObjects.remove(currentSearchMarker);
         currentSearchMarker = null;
     }
     
-    // Скрываем информацию о маршруте
+
     DOMCache.routeInfo.style.display = 'none';
     
-    // Скрываем результаты поиска
+
     DOMCache.searchResults.style.display = 'none';
     
-    // Очищаем поле поиска
+
     DOMCache.searchInput.value = '';
     
-    // Возвращаем карту в то же положение, где она была
+
     if (map) {
         map.setCenter(currentCenter, currentZoom);
     }
 }
 
-// Показать/скрыть индикатор загрузки
+
 function showLoading(show, message = 'Загружаем...') {
     const loadingElement = DOMCache.loading;
     if (loadingElement) {
@@ -566,35 +566,35 @@ function showLoading(show, message = 'Загружаем...') {
     }
 }
 
-// Показать ошибку
+
 function showError(message) {
     showNotification(message, 'error');
 }
 
-// Настройка обработчиков событий
+
 function setupEventListeners() {
-    // Поиск адреса
+
     if (DOMCache.searchBtn) {
         DOMCache.searchBtn.addEventListener('click', performSearch);
     }
     
-    // Построение маршрута
+
     if (DOMCache.buildRouteBtn) {
         DOMCache.buildRouteBtn.addEventListener('click', buildRoute);
     }
     
 
-    // Очистка маршрута
+
     if (DOMCache.clearRouteBtn) {
         DOMCache.clearRouteBtn.addEventListener('click', clearRoute);
     }
     
-    // Смена проекта
+
     if (DOMCache.changeProjectBtn) {
         DOMCache.changeProjectBtn.addEventListener('click', showProjectModal);
     }
     
-    // Поиск по Enter в поле ввода
+
     if (DOMCache.searchInput) {
         DOMCache.searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -603,7 +603,7 @@ function setupEventListeners() {
         });
     }
     
-    // Кнопки маршрута в правой панели
+
     const setAsStartPointBtn = document.getElementById('setAsStartPoint');
     if (setAsStartPointBtn) {
         setAsStartPointBtn.addEventListener('click', () => setStoreAsRoutePoint('start'));
@@ -615,13 +615,13 @@ function setupEventListeners() {
     }
 }
 
-// Глобальные функции для onclick атрибутов
+
 window.selectProject = selectProject;
 window.showProjectModal = showProjectModal;
 
 
 
-// Создание заглушки карты без API
+
 function createMapPlaceholder() {
     const mapContainer = document.getElementById('map');
     if (!mapContainer) {
@@ -629,7 +629,7 @@ function createMapPlaceholder() {
         return;
     }
     
-    // Создаем заглушку с инструкцией
+
     mapContainer.innerHTML = `
         <div style="
             display: flex;
@@ -670,7 +670,7 @@ function createMapPlaceholder() {
 
 
 
-// Функции для работы с модальным окном
+
 function showProjectModal() {
     if (isModalOpen) return;
     
@@ -682,21 +682,21 @@ function showProjectModal() {
         return;
     }
     
-    // Сбрасываем текущий выбор для возможности смены проекта
+
     selectedProject = null;
     selectedCity = null;
     
-    // Закрываем правую панель при открытии модального окна смены проекта
+
     hideStoreInfo();
     
-    // Сбрасываем флаги загрузки
+
     isLoadingProject = false;
     isLoadingData = false;
     isLoadingProjectData = false;
     
-    // НЕ очищаем кеш здесь - он будет очищен только при реальной смене проекта
+
     
-    // Добавляем обработчики событий для модального окна
+
     setupModalEventListeners();
 }
 
@@ -708,16 +708,16 @@ function hideProjectModal() {
 }
 
 function setupModalEventListeners() {
-    // Выбор проекта
+
     const projectCards = document.querySelectorAll('.project-card');
     
     projectCards.forEach((card, index) => {
         const projectName = card.dataset.project;
     
-    // Убираем старые обработчики, если они есть
+
         card.removeEventListener('click', card._projectClickHandler);
         
-        // Создаем новый обработчик
+
         card._projectClickHandler = () => {
 
             selectProject(projectName);
@@ -726,9 +726,9 @@ function setupModalEventListeners() {
         card.addEventListener('click', card._projectClickHandler);
     });
     
-    // Поиск города - обработчик будет добавлен в selectProject
+
     
-    // Кнопка "Назад"
+
     const backToProjectBtn = document.getElementById('backToProjectBtn');
     
     if (backToProjectBtn) {
@@ -737,29 +737,29 @@ function setupModalEventListeners() {
 }
 
 function selectProject(project) {
-    // Проверяем, действительно ли меняется проект
+
     if (selectedProject && selectedProject !== project) {
-        // Примечание: данные всех проектов уже загружены в кэш при инициализации
-        // Очищать кэш не нужно - это нарушает логику предварительной загрузки
+
+
         
-        // Закрываем правую панель при смене проекта
+
         hideStoreInfo();
     }
     
     selectedProject = project;
     
-    // Убираем выделение со всех карточек
+
     document.querySelectorAll('.project-card').forEach(card => {
         card.classList.remove('selected');
     });
     
-        // Выделяем выбранную карточку
+
     const selectedCard = document.querySelector(`[data-project="${project}"]`);
     if (selectedCard) {
         selectedCard.classList.add('selected');
     }
     
-    // Показываем выбор города/области
+
     const citySelection = document.getElementById('citySelection');
     const backToProjectBtn = document.getElementById('backToProjectBtn');
     const continueBtn = document.getElementById('continueBtn');
@@ -771,12 +771,12 @@ function selectProject(project) {
         continueBtn.textContent = 'Начать работу';
     }
     
-    // Сбрасываем обработчик кнопки
+
     if (continueBtn) {
         continueBtn.onclick = null;
     }
     
-    // Обновляем заголовок в зависимости от проекта
+
     const citySelectionTitle = document.getElementById('citySelectionTitle');
     const citySearchInputElement = document.getElementById('citySearchInput');
     
@@ -790,27 +790,27 @@ function selectProject(project) {
         }
     }
     
-    // Очищаем предыдущие данные
+
     citiesData = [];
     const cityGrid = document.getElementById('cityGrid');
     if (cityGrid) {
         cityGrid.innerHTML = '';
     }
     
-    // Добавляем обработчик поиска городов
+
     const citySearchInput = document.getElementById('citySearchInput');
     if (citySearchInput) {
-        // Удаляем старый обработчик, если он есть
+
         if (citySearchInput._searchHandler) {
             citySearchInput.removeEventListener('input', citySearchInput._searchHandler);
         }
         
-        // Создаем новый обработчик
+
         citySearchInput._searchHandler = (e) => filterCities(e.target.value);
         citySearchInput.addEventListener('input', citySearchInput._searchHandler);
     }
     
-    // Загружаем города/области для выбранного проекта
+
     loadCitiesForProject(project).catch(error => {
 
 
@@ -821,32 +821,32 @@ function backToProjectSelection() {
     selectedProject = null;
     selectedCity = null;
     
-    // Закрываем правую панель при возврате к выбору проекта
+
     hideStoreInfo();
     
-    // Скрываем выбор города/области
+
     document.getElementById('citySelection').style.display = 'none';
     document.getElementById('backToProjectBtn').style.display = 'none';
     document.getElementById('continueBtn').disabled = true;
     document.getElementById('continueBtn').textContent = 'Начать работу';
     
-    // Сбрасываем обработчик кнопки
+
     const continueBtn = document.getElementById('continueBtn');
     continueBtn.onclick = null;
     
-    // Убираем выделение с карточек
+
     document.querySelectorAll('.project-card').forEach(card => {
         card.classList.remove('selected');
     });
     
-    // Сбрасываем заголовок и placeholder
+
     const citySelectionTitle = document.getElementById('citySelectionTitle');
     if (citySelectionTitle) {
         citySelectionTitle.innerHTML = '🏙️ Выберите город';
     }
     document.getElementById('citySearchInput').placeholder = 'Поиск города...';
     
-    // Очищаем поиск города
+
     document.getElementById('citySearchInput').value = '';
     filterCities('');
 }
@@ -858,13 +858,13 @@ async function loadCitiesForProject(project) {
         return;
     }
     
-    // Проверяем, не загружается ли уже проект
+
     if (isLoadingProject) {
         return;
     }
     
-    // Проверяем кеш
-    // Примечание: данные всех проектов уже загружены в кэш при инициализации
+
+
     if (projectDataCache.has(project)) {
         const cachedData = projectDataCache.get(project);
         citiesData = cachedData.cities;
@@ -875,18 +875,18 @@ async function loadCitiesForProject(project) {
         return;
     }
     
-    // Устанавливаем флаг загрузки
+
     isLoadingProject = true;
     
     try {
-        // Загружаем данные из Google таблиц
+
         const { storesData, citiesData: projectCities } = await loadDataFromGoogleSheets(project);
         
         if (projectCities && projectCities.length > 0) {
             citiesData = projectCities;
             displayCities(citiesData);
             
-            // Кэш уже заполнен в loadDataFromGoogleScript, дополнительно сохранять не нужно
+
         } else {
             loadTestCities(project);
         }
@@ -894,25 +894,25 @@ async function loadCitiesForProject(project) {
     } catch (error) {
         loadTestCities(project);
     } finally {
-        // Сбрасываем флаг загрузки
+
         isLoadingProject = false;
     }
 }
 
-// Загрузка данных из Google Apps Script
+
 function loadDataFromGoogleScript(scriptUrl, project) {
     return new Promise((resolve, reject) => {
-        // Список всех листов для загрузки (кроме "Магнит Тариф")
+
         const allSheets = ['lenta', 'magnet', 'vkusvill'];
         const loadedData = {};
         let completedSheets = 0;
         
-        // Функция для обработки загрузки одного листа
+
         const loadSheet = (sheetName) => {
             const callbackName = 'callback_' + Math.random().toString(36).substr(2, 9);
             const url = `${scriptUrl}?sheet=${sheetName}&callback=${callbackName}`;
             
-            // Устанавливаем таймаут для запроса
+
             const timeout = setTimeout(() => {
                 loadedData[sheetName] = [];
                 completedSheets++;
@@ -941,23 +941,23 @@ function loadDataFromGoogleScript(scriptUrl, project) {
             document.head.appendChild(script);
         };
         
-        // Функция для проверки завершения загрузки всех листов
+
         const checkCompletion = () => {
             if (completedSheets === allSheets.length) {
-                // Сохраняем все загруженные данные в кэш
+
                 allSheets.forEach(sheetName => {
                     if (loadedData[sheetName] && loadedData[sheetName].length > 0) {
-                        // Извлекаем уникальные города/области с координатами для каждого листа
+
                         const cities = extractUniqueCities(loadedData[sheetName], sheetName);
                         
-                        // Сохраняем в кэш
+
                         projectDataCache.set(sheetName, {
                             cities: cities,
                             stores: loadedData[sheetName],
                             timestamp: Date.now()
                         });
                     } else {
-                        // Сохраняем пустые данные в кэш
+
                         projectDataCache.set(sheetName, {
                             cities: [],
                             stores: [],
@@ -966,20 +966,20 @@ function loadDataFromGoogleScript(scriptUrl, project) {
                     }
                 });
                 
-                // Возвращаем данные для запрошенного проекта
+
                 const requestedData = loadedData[project] || [];
                 resolve(requestedData);
             }
         };
         
-        // Загружаем все листы параллельно
+
         allSheets.forEach(sheetName => {
             loadSheet(sheetName);
         });
     });
 }
 
-// Извлечение уникальных городов/областей с координатами
+
 function extractUniqueCities(rawData, project) {
     const field = project === 'magnet' ? 'area' : 'city';
     const locations = new Map();
@@ -1014,7 +1014,7 @@ function extractUniqueCities(rawData, project) {
     return Array.from(locations.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Загрузка тестовых данных (fallback)
+
 function loadTestCities(project) {
     const testLocations = {
         lenta: [
@@ -1056,14 +1056,14 @@ function displayCities(cities) {
         const cityItem = document.createElement('div');
         cityItem.className = 'city-item';
         
-        // Проверяем, является ли city объектом или строкой
+
         if (typeof city === 'object' && city.name) {
             cityItem.textContent = city.name;
         } else {
             cityItem.textContent = city;
         }
         
-        // Добавляем обработчик клика
+
         cityItem.addEventListener('click', (event) => {
             selectCity(city, event);
         });
@@ -1073,14 +1073,14 @@ function displayCities(cities) {
     });
 }
 
-// Показать индикатор загрузки
+
 function showLoadingIndicator(message = 'Загружаем города...') {
     const cityGrid = document.getElementById('cityGrid');
     if (cityGrid) {
-        // Скрываем сетку городов
+
         cityGrid.style.display = 'none';
         
-        // Создаем контейнер для индикатора загрузки поверх сетки
+
         const loadingOverlay = document.createElement('div');
         loadingOverlay.className = 'loading-overlay';
         loadingOverlay.innerHTML = `
@@ -1090,7 +1090,7 @@ function showLoadingIndicator(message = 'Загружаем города...') {
             </div>
         `;
         
-        // Добавляем индикатор загрузки в родительский контейнер
+
         const citySelection = document.getElementById('citySelection');
         if (citySelection) {
             citySelection.appendChild(loadingOverlay);
@@ -1098,15 +1098,15 @@ function showLoadingIndicator(message = 'Загружаем города...') {
     }
 }
 
-// Скрыть индикатор загрузки
+
 function hideLoadingIndicator() {
     const cityGrid = document.getElementById('cityGrid');
     if (cityGrid) {
-        // Показываем сетку городов обратно
+
         cityGrid.style.display = 'grid';
     }
     
-    // Удаляем индикатор загрузки
+
     const loadingOverlay = document.querySelector('.loading-overlay');
     if (loadingOverlay) {
         loadingOverlay.remove();
@@ -1114,9 +1114,9 @@ function hideLoadingIndicator() {
 }
 
 function selectCity(city, event) {
-    // ВАЖНО: Если selectedProject равен null, пытаемся восстановить его
+
     if (!selectedProject) {
-        // Пытаемся найти активный проект по выделенной карточке
+
         const activeProjectCard = document.querySelector('.project-card.selected');
         if (activeProjectCard) {
             const projectName = activeProjectCard.dataset.project;
@@ -1126,25 +1126,25 @@ function selectCity(city, event) {
         }
     }
     
-    // Обновляем выбранный город
-    // Проверяем, является ли city объектом или строкой
+
+
     if (typeof city === 'object' && city.name) {
         selectedCity = city.name;
     } else {
         selectedCity = city;
     }
     
-    // Убираем выделение со всех городов
+
     document.querySelectorAll('.city-item').forEach(item => {
         item.classList.remove('selected');
     });
     
-    // Выделяем выбранный город
+
     if (event && event.target) {
         event.target.classList.add('selected');
     }
     
-    // Активируем кнопку "Начать работу"
+
     const continueBtn = document.getElementById('continueBtn');
     if (!continueBtn) {
         return;
@@ -1153,9 +1153,9 @@ function selectCity(city, event) {
     continueBtn.disabled = false;
     continueBtn.textContent = 'Начать работу';
     
-    // Добавляем обработчик для кнопки "Начать работу"
+
     continueBtn.onclick = function() {
-        // Показываем индикатор загрузки на кнопке
+
         continueBtn.disabled = true;
         continueBtn.innerHTML = '<span class="loading-spinner-small"></span> Инициализируем карту...';
         
@@ -1165,7 +1165,7 @@ function selectCity(city, event) {
 
 function filterCities(searchTerm) {
     const filteredCities = citiesData.filter(city => {
-        // Проверяем, является ли city объектом или строкой
+
         const cityName = typeof city === 'object' && city.name ? city.name : city;
         return cityName.toLowerCase().includes(searchTerm.toLowerCase());
     });
@@ -1173,19 +1173,19 @@ function filterCities(searchTerm) {
 }
 
 async function loadProjectDataForMap() {
-    // Проверяем, не выполняется ли уже загрузка
+
     if (isLoadingProjectData) {
         return;
     }
     
-    // Устанавливаем флаг загрузки
+
     isLoadingProjectData = true;
     
-    // Получаем ссылку на кнопку
+
     const continueButton = document.getElementById('continueBtn');
     
     try {
-        // Восстанавливаем кнопку "Начать работу"
+
         const continueBtn = document.getElementById('continueBtn');
         if (continueBtn) {
             continueBtn.disabled = false;
@@ -1199,18 +1199,18 @@ async function loadProjectDataForMap() {
             return;
         }
         
-        // Сохраняем выбранные настройки
+
         localStorage.setItem('selectedProject', selectedProject);
         localStorage.setItem('selectedCity', selectedCity);
         
-        // Скрываем модальное окно
+
         hideProjectModal();
         
-        // Обновляем информацию о проекте в левой панели
+
         updateProjectInfo();
         
-        // Проверяем кеш для данных проекта
-        // Примечание: данные всех проектов уже загружены в кэш при инициализации
+
+
         let storesData, projectCities;
         
         if (projectDataCache.has(selectedProject)) {
@@ -1219,7 +1219,7 @@ async function loadProjectDataForMap() {
             projectCities = cachedData.cities;
             
         } else {
-            // Загружаем данные из всех листов (данные автоматически сохраняются в кэше)
+
             const result = await loadDataFromGoogleSheets(selectedProject);
             storesData = result.storesData;
             projectCities = result.citiesData;
@@ -1230,29 +1230,29 @@ async function loadProjectDataForMap() {
             return;
         }
         
-        // Обновляем сообщение загрузки
+
         showLoading(true, `Центрируем карту на ${selectedCity}...`);
         
-        // Обновляем текст кнопки
+
         if (continueButton) {
             continueButton.innerHTML = '<span class="loading-spinner-small"></span> Центрируем карту...';
         }
         
-        // Центрируем карту на выбранном городе/области
+
         centerMapOnCity(selectedCity);
         
-        // Небольшая задержка для плавности
+
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Показываем уведомление с правильными названиями
+
         const projectName = getProjectDisplayName(selectedProject);
         const locationType = selectedProject === 'magnet' ? 'области' : 'города';
 
         
-        // Загружаем данные для выбранного проекта и города/области
+
         loadProjectDataForCity(selectedProject, selectedCity);
         
-        // Обновляем текст кнопки на завершение
+
         if (continueButton) {
             continueButton.innerHTML = '<span class="loading-spinner-small"></span> Готово!';
             setTimeout(() => {
@@ -1261,58 +1261,58 @@ async function loadProjectDataForMap() {
             }, 1000);
         }
         
-        // Скрываем индикатор загрузки
+
         showLoading(false);
         
     } catch (error) {
 
 
-        // Скрываем индикатор загрузки при ошибке
+
         showLoading(false);
     } finally {
-        // Сбрасываем флаг загрузки
+
         isLoadingProjectData = false;
     }
 }
 
-// Функция для загрузки данных проекта для конкретного города/области
+
 async function loadProjectDataForCity(project, city) {
     try {
-        // Получаем координаты выбранного города/области
+
         const cityData = findCityCoordinates(city);
         if (!cityData || !cityData.coordinates) {
             console.error('Координаты города не найдены');
             return;
         }
 
-        // Загружаем данные всех проектов и отображаем магазины по координатам
+
         await createAllProjectMarkersByCoordinates(cityData.coordinates, city);
     } catch (error) {
         console.error('Ошибка загрузки данных проекта:', error);
     }
 }
 
-// Функция создания меток для всех проектов по координатам
+
 async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
     try {
-        // Очищаем существующие метки
+
         clearMapMarkers();
         
-        // Радиус поиска в километрах (можно настроить)
+
         const searchRadius = 100; // 150 км радиус поиска
         
-        // Получаем данные всех проектов из кэша
+
         const allProjects = ['lenta', 'magnet', 'vkusvill'];
         let totalStores = 0;
         let processedStores = 0;
         
-        // Сначала подсчитываем общее количество магазинов для прогресса
+
         for (const project of allProjects) {
             if (projectDataCache.has(project)) {
                 const projectData = projectDataCache.get(project);
                 const stores = projectData.stores || [];
                 
-                // Фильтруем магазины по координатам
+
                 const nearbyStores = stores.filter(store => {
                     if (!store.coordinates) return false;
                     
@@ -1332,17 +1332,17 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
             return;
         }
         
-        // Показываем индикатор загрузки
+
         showLoading(true, `Загрузка магазинов: 0 из ${totalStores}`);
         
-        // Обрабатываем каждый проект
+
         for (const project of allProjects) {
             if (!projectDataCache.has(project)) continue;
             
             const projectData = projectDataCache.get(project);
             const stores = projectData.stores || [];
             
-            // Фильтруем магазины по координатам
+
             const nearbyStores = stores.filter(store => {
                 if (!store.coordinates) return false;
                 
@@ -1353,7 +1353,7 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
                 return distance <= searchRadius;
             });
             
-            // Группируем магазины по адресу для каждого проекта
+
             const storesByAddress = new Map();
             
             for (const store of nearbyStores) {
@@ -1366,22 +1366,22 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
                 }
             }
             
-            // Создаем метки для каждого уникального адреса
+
             for (const [key, storeGroup] of storesByAddress) {
                 processedStores++;
                 showLoading(true, `Загрузка магазинов: ${processedStores} из ${totalStores}`);
                 
-                // Геокодируем адрес
+
                 const coordinates = await geocodeFullAddress(storeGroup.address);
                 
                 if (coordinates) {
-                    // Создаем метку на карте с группированными данными
+
                     createStoreMarker(coordinates, storeGroup, project);
                 }
             }
         }
         
-        // Проверяем ошибки #N/A в загруженных магазинах для выбранного города
+
         let allErrors = [];
         for (const project of allProjects) {
             if (!projectDataCache.has(project)) continue;
@@ -1389,7 +1389,7 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
             const projectData = projectDataCache.get(project);
             const stores = projectData.stores || [];
             
-            // Фильтруем магазины по координатам (те же, что загружены на карту)
+
             const nearbyStores = stores.filter(store => {
                 if (!store.coordinates) return false;
                 
@@ -1400,21 +1400,21 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
                 return distance <= searchRadius;
             });
             
-            // Проверяем ошибки в отфильтрованных магазинах
+
             const errors = detectDataErrors(nearbyStores, project);
             if (errors.length > 0) {
                 allErrors = allErrors.concat(errors);
             }
         }
         
-        // Показываем модальное окно с ошибками, если они есть
+
         if (allErrors.length > 0) {
             setTimeout(() => {
                 showErrorModal(allErrors);
             }, 1000); // Небольшая задержка для завершения загрузки
         }
         
-        // Скрываем индикатор загрузки
+
         showLoading(false);
         
     } catch (error) {
@@ -1423,12 +1423,12 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
     }
 }
 
-// Функция создания меток для проекта "Лента"
+
 async function createLentaMarkers(selectedCity) {
     try {
 
         
-        // Получаем данные из кэша
+
         if (!projectDataCache.has('lenta')) {
             return;
         }
@@ -1440,17 +1440,17 @@ async function createLentaMarkers(selectedCity) {
             return;
         }
         
-        // Фильтруем магазины по выбранному городу
+
         const cityStores = stores.filter(store => {
             return store.city && store.city.toLowerCase() === selectedCity.toLowerCase();
         });
         
 
         
-        // Очищаем существующие метки
+
         clearMapMarkers();
         
-        // Группируем магазины по адресу
+
         const storesByAddress = new Map();
         
         for (const store of cityStores) {
@@ -1462,28 +1462,28 @@ async function createLentaMarkers(selectedCity) {
             }
         }
     
-        // Создаем метки для каждого уникального адреса
+
         const totalAddresses = storesByAddress.size;
         let processedAddresses = 0;
         
-        // Показываем индикатор загрузки адресов
+
         showLoading(true, `Загрузка адресов: 0 из ${totalAddresses}`);
         
         for (const [address, stores] of storesByAddress) {
-            // Обновляем прогресс
+
             processedAddresses++;
             showLoading(true, `Загрузка адресов: ${processedAddresses} из ${totalAddresses}`);
             
-            // Геокодируем адрес через нашу универсальную функцию
+
             const coordinates = await geocodeFullAddress(address);
             
             if (coordinates) {
-                // Создаем метку на карте с группированными данными
+
                 createStoreMarker(coordinates, { stores, address }, 'lenta');
                     }
         }
         
-        // Скрываем индикатор загрузки после завершения
+
         showLoading(false);
         
     } catch (error) {
@@ -1491,10 +1491,10 @@ async function createLentaMarkers(selectedCity) {
     }
 }
 
-// Функция создания меток для проекта "Магнит"
+
 async function createMagnetMarkers(selectedArea) {
     try {
-        // Получаем данные из кэша
+
         if (!projectDataCache.has('magnet')) {
             return;
         }
@@ -1506,15 +1506,15 @@ async function createMagnetMarkers(selectedArea) {
             return;
         }
         
-        // Фильтруем магазины по выбранной области
+
         const areaStores = stores.filter(store => {
             return store.area && store.area.toLowerCase() === selectedArea.toLowerCase();
         });
         
-        // Очищаем существующие метки
+
         clearMapMarkers();
         
-        // Группируем магазины по адресу
+
         const storesByAddress = new Map();
         
         for (const store of areaStores) {
@@ -1526,28 +1526,28 @@ async function createMagnetMarkers(selectedArea) {
             }
         }
     
-        // Создаем метки для каждого уникального адреса
+
         const totalAddresses = storesByAddress.size;
         let processedAddresses = 0;
         
-        // Показываем индикатор загрузки адресов
+
         showLoading(true, `Загрузка адресов: 0 из ${totalAddresses}`);
         
         for (const [address, stores] of storesByAddress) {
-            // Обновляем прогресс
+
             processedAddresses++;
             showLoading(true, `Загрузка адресов: ${processedAddresses} из ${totalAddresses}`);
             
-            // Геокодируем адрес через нашу универсальную функцию
+
             const coordinates = await geocodeFullAddress(address);
             
             if (coordinates) {
-                // Создаем метку на карте с группированными данными
+
                 createStoreMarker(coordinates, { stores, address }, 'magnet');
             }
         }
         
-        // Скрываем индикатор загрузки после завершения
+
         showLoading(false);
         
     } catch (error) {
@@ -1555,10 +1555,10 @@ async function createMagnetMarkers(selectedArea) {
     }
 }
 
-// Функция создания меток для проекта "ВкусВилл"
+
 async function createVkusvillMarkers(selectedCity) {
     try {
-        // Получаем данные из кэша
+
         if (!projectDataCache.has('vkusvill')) {
             return;
         }
@@ -1570,15 +1570,15 @@ async function createVkusvillMarkers(selectedCity) {
             return;
         }
         
-        // Фильтруем магазины по выбранной области
+
         const areaStores = stores.filter(store => {
             return store.city && store.city.toLowerCase() === selectedCity.toLowerCase();
         });
         
-        // Очищаем существующие метки
+
         clearMapMarkers();
         
-        // Группируем магазины по адресу
+
         const storesByAddress = new Map();
         
         for (const store of areaStores) {
@@ -1590,28 +1590,28 @@ async function createVkusvillMarkers(selectedCity) {
             }
         }
     
-        // Создаем метки для каждого уникального адреса
+
         const totalAddresses = storesByAddress.size;
         let processedAddresses = 0;
         
-        // Показываем индикатор загрузки адресов
+
         showLoading(true, `Загрузка адресов: 0 из ${totalAddresses}`);
         
         for (const [address, stores] of storesByAddress) {
-            // Обновляем прогресс
+
             processedAddresses++;
             showLoading(true, `Загрузка адресов: ${processedAddresses} из ${totalAddresses}`);
             
-            // Геокодируем адрес через нашу универсальную функцию
+
             const coordinates = await geocodeFullAddress(address);
             
             if (coordinates) {
-                // Создаем метку на карте с группированными данными
+
                 createStoreMarker(coordinates, { stores, address }, 'vkusvill');
             }
         }
         
-        // Скрываем индикатор загрузки после завершения
+
         showLoading(false);
         
     } catch (error) {
@@ -1619,65 +1619,65 @@ async function createVkusvillMarkers(selectedCity) {
     }
 }
 
-// Функция очистки меток с карты
+
 function clearMapMarkers() {
     if (map && map.geoObjects) {
         map.geoObjects.removeAll();
     }
 }
 
-// Функция создания метки магазина
+
 function createStoreMarker(coordinates, storeData, projectType) {
     try {
         if (!map || !coordinates) {
             return;
         }
         
-        // Определяем содержимое метки
+
         let iconContent = '🏪';
         let hintContent = storeData.address || storeData.fullAddress;
         
-        // Добавляем информацию о проекте в подсказку
+
         const projectName = getProjectDisplayName(projectType);
         hintContent = `${projectName}\n${hintContent}`;
         
         if (storeData.stores && storeData.stores.length > 1) {
-            // Если несколько вакансий - показываем количество
+
             iconContent = storeData.stores.length;
             hintContent = `${projectName}\n${storeData.stores.length} вакансий\n${storeData.address}`;
         } else if (storeData.vacancy) {
-            // Если одна вакансия - показываем её
+
             iconContent = storeData.vacancy;
         }
         
-        // Создаем метку в виде капельки
+
         const marker = new window.ymaps.Placemark([coordinates.lat, coordinates.lon], {
-            // Содержимое метки
+
             iconContent: iconContent,
             hintContent: hintContent
         }, {
-            // Стиль метки - капелька
+
             preset: 'islands#blueDotIcon',
             iconColor: getProjectColor(projectType)
         });
         
-        // Добавляем метку на карту
+
         map.geoObjects.add(marker);
         
-        // Добавляем обработчик клика на метку после добавления на карту
+
         marker.events.add('click', function() {
             showStoreInfo(storeData, projectType);
         });
         
     } catch (error) {
-        // Ошибка не критична
+
     }
 }
 
-// Функция показа информации о магазине
+
 function showStoreInfo(storeData, projectType) {
     try {
-        // Проверяем существование элементов
+
         const storeTkElement = document.getElementById('storeTk');
         const storeAddressElement = document.getElementById('storeAddress');
         const storeDetailsElement = document.getElementById('storeDetails');
@@ -1687,7 +1687,7 @@ function showStoreInfo(storeData, projectType) {
             return;
         }
         
-        // Заполняем заголовок магазина
+
         const projectName = getProjectDisplayName(projectType);
         
         if (storeData.stores && storeData.stores.length > 0) {
@@ -1699,7 +1699,7 @@ function showStoreInfo(storeData, projectType) {
                 if (projectType === 'magnet') {
                     storeTkElement.textContent = `Потребность: ${firstStore.need || '-'}`;
                 } else if (projectType === 'vkusvill') {
-                    // Для ВкусВилл не показываем ТК
+
                     storeTkElement.textContent = '';
                 } else {
                     storeTkElement.textContent = `ТК: ${firstStore.tk || '-'}`;
@@ -1713,7 +1713,7 @@ function showStoreInfo(storeData, projectType) {
                 if (projectType === 'magnet') {
                     storeTkElement.textContent = `Потребность: ${storeData.need || '-'}`;
                 } else if (projectType === 'vkusvill') {
-                    // Для ВкусВилл не показываем ТК
+
                     storeTkElement.textContent = '';
                 } else {
                     storeTkElement.textContent = `ТК: ${storeData.tk || '-'}`;
@@ -1721,22 +1721,22 @@ function showStoreInfo(storeData, projectType) {
             }
         }
         
-        // Очищаем контейнер вакансий
+
         if (storeDetailsElement) {
             storeDetailsElement.innerHTML = '';
             
-            // Добавляем вакансии
+
             const stores = storeData.stores || [storeData];
             stores.forEach((store, index) => {
                 const vacancyItem = document.createElement('div');
                 vacancyItem.className = 'detail-item';
                 
-                // Определяем тип проекта для отображения
+
                 const isMagnet = projectType === 'magnet';
                 const isVkusvill = projectType === 'vkusvill';
                 
                 if (isMagnet) {
-                    // Для проекта Магнит создаем отдельный блок для каждого активного тарифа
+
                     let tariffBlocks = '';
                     
                     if (store.auto && store.auto.toLowerCase() === 'да' && store.tariffAuto !== '#N/A') {
@@ -1787,16 +1787,16 @@ function showStoreInfo(storeData, projectType) {
                         `;
                     }
                     
-                    // Если есть активные тарифы, добавляем их в контейнер
+
                     if (tariffBlocks) {
                         storeDetailsElement.insertAdjacentHTML('beforeend', tariffBlocks);
                     } else {
                     }
                     
-                    // Не создаем vacancyItem для Магнит, так как мы уже добавили блоки напрямую
+
                     return;
                 } else if (isVkusvill) {
-                    // Для проекта ВкусВилл показываем без ТК и с "Средний доход в день"
+
                     vacancyItem.innerHTML = `
                         <div class="vacancy-title">Вакансия ${index + 1}</div>
                         <div class="vacancy-details">
@@ -1806,7 +1806,7 @@ function showStoreInfo(storeData, projectType) {
                         </div>
                     `;
                 } else {
-                    // Для других проектов (Лента) показываем как раньше
+
                     vacancyItem.innerHTML = `
                         <div class="vacancy-title">Вакансия ${index + 1}</div>
                         <div class="vacancy-details">
@@ -1821,28 +1821,28 @@ function showStoreInfo(storeData, projectType) {
             });
         }
         
-        // Показываем панель
+
         panel.style.display = 'block';
         panel.classList.add('show');
     } catch (error) {
-        // Ошибка не критична
+
     }
 }
 
-// Функция скрытия панели информации о магазине
+
 function hideStoreInfo() {
     try {
         const panel = document.getElementById('storeInfoPanel');
         panel.classList.remove('show');
-        // Скрываем панель после завершения анимации
+
                 setTimeout(() => {
             panel.style.display = 'none';
         }, 300);    } catch (error) {
-        // Ошибка не критична
+
     }
 }
 
-// Функция получения цвета для проекта
+
 function getProjectColor(projectType) {
     const colors = {
         'lenta': '#45b7d1',      // Синий для Ленты
@@ -1862,18 +1862,18 @@ function getProjectDisplayName(project) {
     return projectNames[project] || project;
 }
 
-// Центрирование карты на выбранном городе/области
+
 function centerMapOnCity(cityName) {
     if (!map || !cityName) {
         return;
     }
 
     try {
-        // Ищем координаты в загруженных данных
+
         const cityData = findCityCoordinates(cityName);
         
         if (cityData && cityData.coordinates) {
-            // Центрируем карту на городе/области с плавной анимацией
+
             map.setCenter(cityData.coordinates, 10, {
                 duration: 800,
                 timingFunction: 'ease'
@@ -1883,7 +1883,7 @@ function centerMapOnCity(cityName) {
             return;
         }
         
-        // Используем Москву как fallback
+
         const moscowCoords = [55.7558, 37.6176];
         map.setCenter(moscowCoords, 10);
         
@@ -1893,9 +1893,9 @@ function centerMapOnCity(cityName) {
     }
 }
 
-// Функция для поиска координат города в загруженных данных
+
 function findCityCoordinates(cityName) {
-    // Ищем город/область в текущих данных
+
     const cityData = citiesData.find(city => city.name === cityName);
     
     if (cityData && cityData.coordinates) {
@@ -1905,19 +1905,19 @@ function findCityCoordinates(cityName) {
     return null;
 }
 
-// Добавление метки города на карту
+
 function addCityMarker(coords, cityName) {
     if (!map || !window.ymaps || !window.ymaps.Placemark) {
         return;
     }
     
     try {
-        // Удаляем предыдущую метку города, если есть
+
         if (window.cityMarker) {
             map.geoObjects.remove(window.cityMarker);
         }
         
-        // Создаем новую метку
+
         const marker = new window.ymaps.Placemark(coords, {
             balloonContent: `<strong>${cityName}</strong><br>Выбранный город`
         }, {
@@ -1925,16 +1925,16 @@ function addCityMarker(coords, cityName) {
             iconColor: '#3b82f6'
         });
         
-        // Добавляем метку на карту
+
         map.geoObjects.add(marker);
         window.cityMarker = marker;
         
     } catch (error) {
-        // Ошибка не критична
+
     }
 }
 
-// Обновление информации о проекте в левой панели
+
 function updateProjectInfo() {
     const projectInfo = document.getElementById('currentProjectInfo');
     const changeProjectBtn = document.getElementById('changeProjectBtn');
@@ -1963,7 +1963,7 @@ function updateProjectInfo() {
     }
 }
 
-// Создание простого маршрута по прямой линии
+
 function createSimpleRoute(startCoords, endCoords) {
     const distance = calculateDistance(startCoords, endCoords);
     const duration = calculateDuration(startCoords, endCoords);
@@ -1989,7 +1989,7 @@ function createSimpleRoute(startCoords, endCoords) {
     };
 }
 
-// Расчет расстояния между двумя точками (формула гаверсинуса)
+
 function calculateDistance(coord1, coord2) {
     const R = 6371; // Радиус Земли в км
     const dLat = (coord2[0] - coord1[0]) * Math.PI / 180;
@@ -2001,21 +2001,21 @@ function calculateDistance(coord1, coord2) {
     return R * c;
 }
 
-// Расчет примерного времени в пути (60 км/ч)
+
 function calculateDuration(coord1, coord2) {
     const distance = calculateDistance(coord1, coord2);
     const speed = 60; // км/ч
     return distance / speed; // часы
 }
 
-// Умное построение маршрута с автоматическим переключением API
+
 async function buildRouteSmart(startCoords, endCoords, profile) {
-    // Используем простой маршрут по прямой линии (без внешних API)
-    // Это избегает проблем с CORS и API ключами
+
+
     return createSimpleRoute(startCoords, endCoords);
 }
 
-// Геокодирование адреса через Nominatim (OpenStreetMap, бесплатно)
+
 async function geocodeAddress(address) {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=ru&addressdetails=1&accept-language=ru`;
     
@@ -2048,7 +2048,7 @@ async function geocodeAddress(address) {
     }
 }
 
-// Универсальная функция геокодирования через API Яндекс.Карт для fullAddress
+
 async function geocodeFullAddress(fullAddress) {
     try {
         if (!fullAddress || fullAddress.trim() === '') {
@@ -2060,7 +2060,7 @@ async function geocodeFullAddress(fullAddress) {
             return await geocodeAddress(fullAddress);
         }
         
-        // Используем API Яндекс.Карт для геокодирования
+
         const result = await window.ymaps.geocode(fullAddress, {
             results: 1,
             kind: 'house'
@@ -2081,22 +2081,22 @@ async function geocodeFullAddress(fullAddress) {
         
     } catch (error) {
 
-        // Fallback на Nominatim
+
         return await geocodeAddress(fullAddress);
     }
 }
 
-// Построение маршрута (открытие в Яндекс.Картах)
+
 async function buildRoute() {
-    // Просто вызываем функцию открытия в Яндекс.Картах
+
     openInYandexMaps();
 }
 
 
-// Функция для установки магазина как точки маршрута
+
 function setStoreAsRoutePoint(pointType) {
     try {
-        // Получаем адрес из правой панели
+
         const storeAddressElement = document.getElementById('storeAddress');
         if (!storeAddressElement) {
     
@@ -2109,7 +2109,7 @@ function setStoreAsRoutePoint(pointType) {
             return;
         }
         
-        // Определяем поле ввода в зависимости от типа точки
+
         const inputFieldId = pointType === 'start' ? 'startPoint' : 'endPoint';
         const inputField = document.getElementById(inputFieldId);
         
@@ -2118,14 +2118,14 @@ function setStoreAsRoutePoint(pointType) {
             return;
         }
         
-        // Устанавливаем адрес в поле ввода
+
         inputField.value = storeAddress;
         
-        // Показываем уведомление
+
         const pointName = pointType === 'start' ? 'начальной' : 'конечной';
 
         
-        // Фокусируемся на поле ввода для удобства пользователя
+
         inputField.focus();
         
     } catch (error) {
@@ -2134,10 +2134,10 @@ function setStoreAsRoutePoint(pointType) {
     }
 }
 
-// Функция для установки найденного адреса как точки маршрута
+
 function setSearchLocationAsRoutePoint(pointType, address) {
     try {
-        // Определяем поле ввода в зависимости от типа точки
+
         const inputFieldId = pointType === 'start' ? 'startPoint' : 'endPoint';
         const inputField = document.getElementById(inputFieldId);
         
@@ -2146,17 +2146,17 @@ function setSearchLocationAsRoutePoint(pointType, address) {
             return;
         }
         
-        // Устанавливаем адрес в поле ввода
+
         inputField.value = address;
         
-        // Показываем уведомление
+
         const pointName = pointType === 'start' ? 'начальной' : 'конечной';
 
         
-        // Фокусируемся на поле ввода для удобства пользователя
+
         inputField.focus();
         
-        // Закрываем информационное окно маркера
+
         if (currentSearchMarker && currentSearchMarker.balloon) {
             currentSearchMarker.balloon.close();
         }
@@ -2167,17 +2167,17 @@ function setSearchLocationAsRoutePoint(pointType, address) {
     }
 }
 
-// Делаем функцию доступной глобально для вызова из HTML
+
 window.setSearchLocationAsRoutePoint = setSearchLocationAsRoutePoint;
 
-// Функция для обнаружения ошибок #N/A в данных
+
 function detectDataErrors(storesData, projectType) {
     const errors = [];
     
     storesData.forEach((store, index) => {
         const storeErrors = [];
         
-        // Проверяем различные поля в зависимости от типа проекта
+
         if (projectType === 'lenta') {
             if (store.tk === '#N/A') storeErrors.push('ТК');
             if (store.vacancy === '#N/A') storeErrors.push('Вакансия');
@@ -2206,11 +2206,11 @@ function detectDataErrors(storesData, projectType) {
     return errors;
 }
 
-// Функция для показа модального окна с ошибками
+
 function showErrorModal(errors) {
     if (errors.length === 0) return;
     
-    // Создаем модальное окно для ошибок
+
     const errorModal = document.createElement('div');
     errorModal.className = 'error-modal-overlay';
     errorModal.innerHTML = `
@@ -2240,13 +2240,13 @@ function showErrorModal(errors) {
     
     document.body.appendChild(errorModal);
     
-    // Показываем модальное окно с анимацией
+
     setTimeout(() => {
         errorModal.classList.add('show');
     }, 10);
 }
 
-// Функция для закрытия модального окна ошибок
+
 function closeErrorModal() {
     const errorModal = document.querySelector('.error-modal-overlay');
     if (errorModal) {
@@ -2257,5 +2257,5 @@ function closeErrorModal() {
     }
 }
 
-// Делаем функции доступными глобально
+
 window.closeErrorModal = closeErrorModal;
