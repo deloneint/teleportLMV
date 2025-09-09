@@ -125,7 +125,7 @@ async function loginUser(phone, password) {
             if (error.code === 'PGRST116') {
                 return { 
                     success: false, 
-                    error: 'Пользователь с таким номером телефона не найден или заблокирован' 
+                    error: 'Пользователь с таким номером телефона не найден или забокирован' 
                 };
             }
             console.error('Supabase error:', error);
@@ -198,11 +198,143 @@ async function createSession(userId) {
     }
 }
 
+// Функция проверки сессии
+async function checkSession(sessionId) {
+    try {
+        const { data, error } = await supabase
+            .from('sessions')
+            .select(`
+                *,
+                users (*)
+            `)
+            .eq('id', sessionId)
+            .gt('expires_at', new Date().toISOString())
+            .single();
+        
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return { 
+                    success: false, 
+                    error: 'Сессия не найдена или истекла' 
+                };
+            }
+            console.error('Supabase error:', error);
+            return { 
+                success: false, 
+                error: translateError(error)
+            };
+        }
+        
+        return { success: true, session: data };
+    } catch (error) {
+        console.error('Ошибка проверки сессии:', error);
+        return { 
+            success: false, 
+            error: translateError(error)
+        };
+    }
+}
+
+// Функция выхода
+async function logoutUser(sessionId) {
+    try {
+        const { error } = await supabase
+            .from('sessions')
+            .delete()
+            .eq('id', sessionId);
+        
+        if (error) {
+            console.error('Supabase error:', error);
+            return { 
+                success: false, 
+                error: translateError(error)
+            };
+        }
+        
+        return { success: true };
+    } catch (error) {
+        console.error('Ошибка выхода:', error);
+        return { 
+            success: false, 
+            error: translateError(error)
+        };
+    }
+}
+
+// Функция проверки статуса пользователя
+async function checkUserStatus(userId) {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('is_active')
+            .eq('id', userId)
+            .single();
+        
+        if (error) {
+            console.error('Supabase error:', error);
+            return { 
+                success: false, 
+                error: translateError(error)
+            };
+        }
+        
+        return { 
+            success: true, 
+            isActive: data.is_active 
+        };
+    } catch (error) {
+        console.error('Ошибка проверки статуса пользователя:', error);
+        return { 
+            success: false, 
+            error: translateError(error)
+        };
+    }
+}
+
+// Функция подписки на изменения статуса пользователя
+function subscribeToUserStatus(userId, callback) {
+    try {
+        const subscription = supabase
+            .channel(`user_status_${userId}`)
+            .on('postgres_changes', 
+                { 
+                    event: 'UPDATE', 
+                    schema: 'public', 
+                    table: 'users',
+                    filter: `id=eq.${userId}`
+                }, 
+                (payload) => {
+                    if (payload.new && payload.new.is_active === false) {
+                        callback(false);
+                    }
+                }
+            )
+            .subscribe();
+        
+        return subscription;
+    } catch (error) {
+        console.error('Ошибка подписки на изменения статуса:', error);
+        return null;
+    }
+}
+
+// Функция отписки от изменений статуса
+function unsubscribeFromUserStatus(subscription) {
+    if (subscription) {
+        supabase.removeChannel(subscription);
+    }
+}
+
 
 
 
 window.SupabaseAuth = {
     registerUser,
     loginUser,
-    createSession
+    createSession,
+    checkSession,
+    logoutUser,
+    checkUserStatus,
+    subscribeToUserStatus,
+    unsubscribeFromUserStatus
 };

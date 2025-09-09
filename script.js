@@ -3,7 +3,8 @@ let selectedProject = null;
 let selectedCity = null;
 let citiesData = [];
 let isModalOpen = false;
-let isSingleProjectMode = false; 
+let isSingleProjectMode = false;
+let statusSubscription = null; // Подписка на изменения статуса пользователя 
 
 
 const DOMCache = {
@@ -171,9 +172,8 @@ function initDOMCache() {
     DOMCache.projectModeSwitch = document.getElementById('projectModeSwitch');
 }
 
-function checkAuth() {
+async function checkAuth() {
     const session = localStorage.getItem('auth_session');
-    
     if (!session) {
         window.location.href = 'auth.html';
         return false;
@@ -182,29 +182,105 @@ function checkAuth() {
     try {
         const sessionData = JSON.parse(session);
         
+        // Проверяем срок действия сессии
         if (sessionData.expires <= Date.now()) {
             localStorage.removeItem('auth_session');
             window.location.href = 'auth.html';
             return false;
         }
         
+        // Проверяем сессию через Supabase
+        const sessionResult = await window.SupabaseAuth.checkSession(sessionData.sessionId);
+        
+        if (!sessionResult.success) {
+            localStorage.removeItem('auth_session');
+            window.location.href = 'auth.html';
+            return false;
+        }
+        
+        // Проверяем статус пользователя
+        const statusResult = await window.SupabaseAuth.checkUserStatus(sessionData.userId);
+        
+        if (!statusResult.success || !statusResult.isActive) {
+            // Пользователь деактивирован
+            localStorage.removeItem('auth_session');
+            showNotification('Ваш аккаунт был деактивирован администратором', 'error');
+            window.location.href = 'auth.html';
+            return false;
+        }
+        
+        // Запускаем мониторинг статуса пользователя
+        startUserStatusMonitoring(sessionData.userId);
+        
+        return true;
     } catch (error) {
-        console.error('Ошибка парсинга сессии:', error);
         localStorage.removeItem('auth_session');
         window.location.href = 'auth.html';
         return false;
     }
-    
-    return true;
 }
 
 function logout() {
+    stopUserStatusMonitoring();
     localStorage.removeItem('auth_session');
     window.location.href = 'auth.html';
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    if (!checkAuth()) {
+// Запуск мониторинга статуса пользователя
+function startUserStatusMonitoring(userId) {
+    // Останавливаем предыдущую подписку, если есть
+    stopUserStatusMonitoring();
+    
+    // Подписываемся на изменения статуса пользователя
+    statusSubscription = window.SupabaseAuth.subscribeToUserStatus(userId, (isActive) => {
+        if (!isActive) {
+            showNotification('Ваш аккаунт был деактивирован администратором', 'error');
+            window.location.href = 'auth.html';
+        }
+    });
+    
+    // Дополнительно запускаем периодическую проверку каждые 30 секунд
+    startPeriodicStatusCheck(userId);
+}
+
+// Периодическая проверка статуса пользователя
+function startPeriodicStatusCheck(userId) {
+    // Очищаем предыдущий интервал, если есть
+    if (window.statusCheckInterval) {
+        clearInterval(window.statusCheckInterval);
+    }
+    
+    window.statusCheckInterval = setInterval(async () => {
+        try {
+            const statusResult = await window.SupabaseAuth.checkUserStatus(userId);
+            
+            if (!statusResult.success || !statusResult.isActive) {
+                clearInterval(window.statusCheckInterval);
+                showNotification('Ваш аккаунт был деактивирован администратором', 'error');
+                window.location.href = 'auth.html';
+            }
+        } catch (error) {
+            console.error('Ошибка периодической проверки статуса:', error);
+        }
+    }, 30000); // Проверяем каждые 30 секунд
+}
+
+// Остановка мониторинга статуса пользователя
+function stopUserStatusMonitoring() {
+    if (statusSubscription) {
+        window.SupabaseAuth.unsubscribeFromUserStatus(statusSubscription);
+        statusSubscription = null;
+    }
+    
+    // Останавливаем периодическую проверку
+    if (window.statusCheckInterval) {
+        clearInterval(window.statusCheckInterval);
+        window.statusCheckInterval = null;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+    if (!(await checkAuth())) {
         return;
     }
     
@@ -479,6 +555,63 @@ function showLoading(show, message = 'Загружаем...') {
 function showError(message) {
     console.error(message);
     alert(message);
+}
+
+// Показать уведомление
+function showNotification(message, type = 'info') {
+    // Создаем элемент уведомления
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        max-width: 400px;
+        word-wrap: break-word;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    `;
+    
+    // Устанавливаем цвет в зависимости от типа
+    switch (type) {
+        case 'error':
+            notification.style.backgroundColor = '#dc3545';
+            break;
+        case 'success':
+            notification.style.backgroundColor = '#28a745';
+            break;
+        case 'warning':
+            notification.style.backgroundColor = '#ffc107';
+            notification.style.color = '#212529';
+            break;
+        default:
+            notification.style.backgroundColor = '#007bff';
+    }
+    
+    // Добавляем на страницу
+    document.body.appendChild(notification);
+    
+    // Анимация появления
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Автоматически скрываем через 5 секунд
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 5000);
 }
 
 function toggleProjectMode() {

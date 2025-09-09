@@ -2,6 +2,7 @@ class SimpleAuth {
     constructor() {
         this.currentUser = null;
         this.isLoginMode = true;
+        this.statusSubscription = null; // Подписка на изменения статуса
         
         this.init();
     }
@@ -102,20 +103,27 @@ async handleLogin() {
             const sessionResult = await window.SupabaseAuth.createSession(result.user.id);
             
             if (sessionResult.success) {
-
-                localStorage.setItem('auth_session', JSON.stringify({
+                // Сохраняем сессию в localStorage
+                const sessionData = {
                     sessionId: sessionResult.session.id,
                     userId: result.user.id,
                     expires: new Date(sessionResult.session.expires_at).getTime()
-                }));
+                };
+                
+                localStorage.setItem('auth_session', JSON.stringify(sessionData));
                 
                 this.currentUser = result.user;
+                
+                // Запускаем мониторинг статуса пользователя
+                this.startUserStatusMonitoring(result.user.id);
+                
                 this.showNotification('Успешный вход!', 'success');
                 
                 setTimeout(() => {
                     window.location.href = 'index.html';
                 }, 1500);
             } else {
+                console.log('Ошибка создания сессии:', sessionResult);
                 this.showNotification('Ошибка создания сессии', 'error');
             }
         } else {
@@ -172,20 +180,27 @@ async handleRegister() {
             const sessionResult = await window.SupabaseAuth.createSession(result.user.id);
             
             if (sessionResult.success) {
-
-                localStorage.setItem('auth_session', JSON.stringify({
+                // Сохраняем сессию в localStorage
+                const sessionData = {
                     sessionId: sessionResult.session.id,
                     userId: result.user.id,
                     expires: new Date(sessionResult.session.expires_at).getTime()
-                }));
+                };
+                
+                localStorage.setItem('auth_session', JSON.stringify(sessionData));
                 
                 this.currentUser = result.user;
+                
+                // Запускаем мониторинг статуса пользователя
+                this.startUserStatusMonitoring(result.user.id);
+                
                 this.showNotification('Регистрация успешна!', 'success');
 
                 setTimeout(() => {
                     window.location.href = 'index.html';
                 }, 2000);
             } else {
+                console.log('Ошибка создания сессии при регистрации:', sessionResult);
                 this.showNotification('Ошибка создания сессии', 'error');
             }
         } else {
@@ -199,23 +214,37 @@ async handleRegister() {
 }
 
 
-    checkExistingSession() {
+    async checkExistingSession() {
         const session = localStorage.getItem('auth_session');
         if (session) {
             try {
                 const sessionData = JSON.parse(session);
-                const currentTime = Date.now();
-                const sessionExpiry = new Date(sessionData.expires).getTime();
                 
-                if (sessionExpiry > currentTime) {
-                    this.currentUser = { id: sessionData.userId };
-                    window.location.href = 'index.html';
+                // Проверяем сессию через Supabase
+                const sessionResult = await window.SupabaseAuth.checkSession(sessionData.sessionId);
+                
+                if (sessionResult.success && sessionData.expires > Date.now()) {
+                    // Получаем данные пользователя из сессии
+                    this.currentUser = sessionResult.session.users || { id: sessionData.userId };
+                    
+                    // Проверяем статус пользователя
+                    const statusResult = await window.SupabaseAuth.checkUserStatus(sessionData.userId);
+                    
+                    if (statusResult.success && statusResult.isActive) {
+                        // Запускаем мониторинг статуса пользователя
+                        this.startUserStatusMonitoring(sessionData.userId);
+                        // Перенаправляем на главную страницу
+                        window.location.href = 'index.html';
+                    } else {
+                        // Пользователь деактивирован, очищаем сессию
+                        this.forceLogout('Ваш аккаунт был деактивирован администратором');
+                    }
                 } else {
-                    localStorage.removeItem('auth_session');
-                    this.showNotification('Сессия истекла. Пожалуйста, войдите снова.', 'info');
+                    // Сессия недействительна, удаляем её
+                    this.clearSession();
                 }
             } catch (error) {
-                localStorage.removeItem('auth_session');
+                this.clearSession();
             }
         }
     }
@@ -224,9 +253,77 @@ async handleRegister() {
 
 
     logout() {
+        this.stopUserStatusMonitoring();
         this.currentUser = null;
-        localStorage.removeItem('auth_session');
+        this.clearSession();
         window.location.href = 'auth.html';
+    }
+
+    // Принудительный выход с уведомлением
+    forceLogout(message) {
+        this.stopUserStatusMonitoring();
+        this.currentUser = null;
+        this.clearSession();
+        this.showNotification(message, 'error');
+        
+        // Перенаправляем сразу
+        window.location.href = 'auth.html';
+    }
+
+    // Очистка сессии
+    clearSession() {
+        localStorage.removeItem('auth_session');
+    }
+
+    // Запуск мониторинга статуса пользователя
+    startUserStatusMonitoring(userId) {
+        // Останавливаем предыдущую подписку, если есть
+        this.stopUserStatusMonitoring();
+        
+        // Подписываемся на изменения статуса пользователя
+        this.statusSubscription = window.SupabaseAuth.subscribeToUserStatus(userId, (isActive) => {
+            if (!isActive) {
+                this.forceLogout('Ваш аккаунт был деактивирован администратором');
+            }
+        });
+        
+        // Дополнительно запускаем периодическую проверку каждые 30 секунд
+        this.startPeriodicStatusCheck(userId);
+    }
+    
+    // Периодическая проверка статуса пользователя
+    startPeriodicStatusCheck(userId) {
+        // Очищаем предыдущий интервал, если есть
+        if (this.statusCheckInterval) {
+            clearInterval(this.statusCheckInterval);
+        }
+        
+        this.statusCheckInterval = setInterval(async () => {
+            try {
+                const statusResult = await window.SupabaseAuth.checkUserStatus(userId);
+                
+                if (!statusResult.success || !statusResult.isActive) {
+                    clearInterval(this.statusCheckInterval);
+                    this.forceLogout('Ваш аккаунт был деактивирован администратором');
+                }
+            } catch (error) {
+                console.error('Ошибка периодической проверки статуса:', error);
+            }
+        }, 30000); // Проверяем каждые 30 секунд
+    }
+
+    // Остановка мониторинга статуса пользователя
+    stopUserStatusMonitoring() {
+        if (this.statusSubscription) {
+            window.SupabaseAuth.unsubscribeFromUserStatus(this.statusSubscription);
+            this.statusSubscription = null;
+        }
+        
+        // Останавливаем периодическую проверку
+        if (this.statusCheckInterval) {
+            clearInterval(this.statusCheckInterval);
+            this.statusCheckInterval = null;
+        }
     }
 
 
