@@ -125,7 +125,7 @@ async function loginUser(phone, password) {
             if (error.code === 'PGRST116') {
                 return { 
                     success: false, 
-                    error: 'Пользователь с таким номером телефона не найден' 
+                    error: 'Пользователь с таким номером телефона не найден или заблокирован' 
                 };
             }
             console.error('Supabase error:', error);
