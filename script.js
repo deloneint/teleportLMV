@@ -37,6 +37,32 @@ let currentEndMarker = null;
 
 let currentSearchMarker = null;
 
+let markerPositions = new Map();
+
+function getOffsetCoordinates(originalLat, originalLon) {
+    const key = `${originalLat.toFixed(6)},${originalLon.toFixed(6)}`;
+    
+    if (!markerPositions.has(key)) {
+        markerPositions.set(key, []);
+    }
+    
+    const markersAtPosition = markerPositions.get(key);
+    const offsetDistance = 0.0001; 
+    
+    if (markersAtPosition.length === 0) {
+        markersAtPosition.push({ lat: originalLat, lon: originalLon });
+        return { lat: originalLat, lon: originalLon };
+    }
+    
+    const angle = (markersAtPosition.length * 60) * (Math.PI / 180); 
+    const offsetLat = originalLat + offsetDistance * Math.cos(angle);
+    const offsetLon = originalLon + offsetDistance * Math.sin(angle);
+    
+    markersAtPosition.push({ lat: offsetLat, lon: offsetLon });
+    
+    return { lat: offsetLat, lon: offsetLon };
+}
+
 async function preloadAllProjectData() {
     try {
         await loadDataFromGoogleScript(CONFIG.googleScript.url, 'lenta');
@@ -741,8 +767,6 @@ async function loadCitiesForProject(project) {
         citiesData = cachedData.cities;
         displayCities(citiesData);
         
-
-        
         return;
     }
     
@@ -769,7 +793,7 @@ async function loadCitiesForProject(project) {
 function loadDataFromGoogleScript(scriptUrl, project) {
     
     return new Promise((resolve, reject) => {
-        const allSheets = ['lenta', 'magnet', 'vkusvill'];
+        const allSheets = ['lenta', 'lentaShtat', 'magnet', 'vkusvill'];
         const loadedData = {};
         let completedSheets = 0;
         
@@ -886,6 +910,9 @@ function loadTestCities(project) {
             'Москва', 'Санкт-Петербург', 'Екатеринбург', 'Новосибирск', 'Казань',
             'Нижний Новгород', 'Челябинск', 'Самара', 'Ростов-на-Дону', 'Уфа',
             'Волгоград', 'Пермь', 'Воронеж', 'Краснодар', 'Саратов'
+        ],
+        lentaShtat: [
+            'Москва'
         ]
     };
     
@@ -1099,7 +1126,7 @@ async function loadAllProjectsData() {
         hideProjectModal();
         updateProjectInfo();
         
-        const allProjects = ['lenta', 'magnet', 'vkusvill'];
+        const allProjects = ['lenta', 'magnet', 'vkusvill', 'lentaShtat'];
         
         for (const project of allProjects) {
             if (!projectDataCache.has(project)) {
@@ -1315,9 +1342,9 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
     try {
         clearMapMarkers();
         
-        const searchRadius = 100; 
+        const searchRadius = 50; //Радиус поиска в километрах
         
-        const allProjects = ['lenta', 'magnet', 'vkusvill'];
+        const allProjects = ['lenta', 'magnet', 'vkusvill', 'lentaShtat'];
         let totalStores = 0;
         let processedStores = 0;
         
@@ -1590,6 +1617,7 @@ function clearMapMarkers() {
     if (map && map.geoObjects) {
         map.geoObjects.removeAll();
     }
+    markerPositions.clear();
 }
 
 function createStoreMarker(coordinates, storeData, projectType) {
@@ -1611,7 +1639,9 @@ function createStoreMarker(coordinates, storeData, projectType) {
             iconContent = storeData.vacancy;
         }
         
-        const marker = new window.ymaps.Placemark([coordinates.lat, coordinates.lon], {
+        const offsetCoords = getOffsetCoordinates(coordinates.lat, coordinates.lon);
+        
+        const marker = new window.ymaps.Placemark([offsetCoords.lat, offsetCoords.lon], {
             iconContent: iconContent,
             hintContent: hintContent
         }, {
@@ -1681,6 +1711,7 @@ function showStoreInfo(storeData, projectType) {
                 
                 const isMagnet = projectType === 'magnet';
                 const isVkusvill = projectType === 'vkusvill';
+                const isLentaShtat = projectType === 'lentaShtat';
                 
                 if (isMagnet) {
                     let tariffBlocks = '';
@@ -1748,6 +1779,17 @@ function showStoreInfo(storeData, projectType) {
                             <div class="vacancy-detail"><strong>Средний доход в день:</strong> ${store.income || '-'} руб.</div>
                         </div>
                     `;
+                } else if (isLentaShtat) {
+                    vacancyItem.innerHTML = `
+                        <div class="vacancy-title">Вакансия ${index + 1}</div>
+                        <div class="vacancy-details">
+                            <div class="vacancy-detail"><strong>Вакансия:</strong> ${store.vacancy || '-'}</div>
+                            <div class="vacancy-detail"><strong>Потребность:</strong> ${store.position || '-'}</div>
+                            <div class="vacancy-detail"><strong>Тариф:</strong> ${store.tariff || '-'}</div>
+                            <div class="vacancy-detail"><strong>Требования:</strong> ${store.requirments || '-'}</div>
+                            <div class="vacancy-detail"><strong>График:</strong> ${store.graph || '-'}</div>
+                        </div>
+                    `;
                 } else {
                     vacancyItem.innerHTML = `
                         <div class="vacancy-title">Вакансия ${index + 1}</div>
@@ -1783,7 +1825,8 @@ function getProjectColor(projectType) {
     const colors = {
         'lenta': '#45b7d1',      // Синий 
         'magnet': '#ff6b6b',     // Красный 
-        'vkusvill': '#008000'    // Зеленый 
+        'vkusvill': '#008000',   // Зеленый 
+        'lentaShtat': '#9c27b0' // Фиолетовый
     };
     
     return colors[projectType] || '#666666';
@@ -1793,7 +1836,8 @@ function getProjectDisplayName(project) {
     const projectNames = {
         'lenta': 'Лента',
         'magnet': 'Магнит',
-        'vkusvill': 'ВкусВилл'
+        'vkusvill': 'ВкусВилл',
+        'lentaShtat': 'Лента Штат'
     };
     return projectNames[project] || project;
 }
@@ -1882,7 +1926,7 @@ function updateProjectInfo() {
             projectInfo.innerHTML = `
                 <div class="project-name">Все проекты</div>
                 <div class="city-name">${locationType}: ${selectedCity}</div>
-                <div class="project-note">Показываются магазины всех проектов в радиусе 100 км</div>
+                <div class="project-note">Показываются магазины всех проектов в радиусе 50 км</div>
             `;
         }
         
