@@ -1436,7 +1436,7 @@ async function createSingleProjectMarkers(project, city) {
         let processedStores = 0;
         for (const [key, storeGroup] of storesByAddress) {
             processedStores++;
-            showLoading(true, `Загрузка магазинов ${project}: ${processedStores} из ${cityStores.length}`);
+            showLoading(true, `Загрузка магазинов: ${processedStores} из ${cityStores.length}`);
             
             const coordinates = await geocodeFullAddress(storeGroup.address);
             
