@@ -182,14 +182,12 @@ async function checkAuth() {
     try {
         const sessionData = JSON.parse(session);
         
-        // Проверяем срок действия сессии
         if (sessionData.expires <= Date.now()) {
             localStorage.removeItem('auth_session');
             window.location.href = 'auth.html';
             return false;
         }
         
-        // Проверяем сессию через Supabase
         const sessionResult = await window.SupabaseAuth.checkSession(sessionData.sessionId);
         
         if (!sessionResult.success) {
@@ -198,18 +196,15 @@ async function checkAuth() {
             return false;
         }
         
-        // Проверяем статус пользователя
         const statusResult = await window.SupabaseAuth.checkUserStatus(sessionData.userId);
         
         if (!statusResult.success || !statusResult.isActive) {
-            // Пользователь деактивирован
             localStorage.removeItem('auth_session');
             showNotification('Ваш аккаунт был деактивирован администратором', 'error');
             window.location.href = 'auth.html';
             return false;
         }
         
-        // Запускаем мониторинг статуса пользователя
         startUserStatusMonitoring(sessionData.userId);
         
         return true;
@@ -226,12 +221,9 @@ function logout() {
     window.location.href = 'auth.html';
 }
 
-// Запуск мониторинга статуса пользователя
 function startUserStatusMonitoring(userId) {
-    // Останавливаем предыдущую подписку, если есть
     stopUserStatusMonitoring();
     
-    // Подписываемся на изменения статуса пользователя
     statusSubscription = window.SupabaseAuth.subscribeToUserStatus(userId, (isActive) => {
         if (!isActive) {
             showNotification('Ваш аккаунт был деактивирован администратором', 'error');
@@ -239,13 +231,10 @@ function startUserStatusMonitoring(userId) {
         }
     });
     
-    // Дополнительно запускаем периодическую проверку каждые 30 секунд
     startPeriodicStatusCheck(userId);
 }
 
-// Периодическая проверка статуса пользователя
 function startPeriodicStatusCheck(userId) {
-    // Очищаем предыдущий интервал, если есть
     if (window.statusCheckInterval) {
         clearInterval(window.statusCheckInterval);
     }
@@ -262,17 +251,15 @@ function startPeriodicStatusCheck(userId) {
         } catch (error) {
             console.error('Ошибка периодической проверки статуса:', error);
         }
-    }, 30000); // Проверяем каждые 30 секунд
+    }, 30000); 
 }
 
-// Остановка мониторинга статуса пользователя
 function stopUserStatusMonitoring() {
     if (statusSubscription) {
         window.SupabaseAuth.unsubscribeFromUserStatus(statusSubscription);
         statusSubscription = null;
     }
     
-    // Останавливаем периодическую проверку
     if (window.statusCheckInterval) {
         clearInterval(window.statusCheckInterval);
         window.statusCheckInterval = null;
@@ -557,9 +544,7 @@ function showError(message) {
     alert(message);
 }
 
-// Показать уведомление
 function showNotification(message, type = 'info') {
-    // Создаем элемент уведомления
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
@@ -579,7 +564,6 @@ function showNotification(message, type = 'info') {
         transition: transform 0.3s ease;
     `;
     
-    // Устанавливаем цвет в зависимости от типа
     switch (type) {
         case 'error':
             notification.style.backgroundColor = '#dc3545';
@@ -595,15 +579,12 @@ function showNotification(message, type = 'info') {
             notification.style.backgroundColor = '#007bff';
     }
     
-    // Добавляем на страницу
     document.body.appendChild(notification);
     
-    // Анимация появления
     setTimeout(() => {
         notification.style.transform = 'translateX(0)';
     }, 10);
     
-    // Автоматически скрываем через 5 секунд
     setTimeout(() => {
         notification.style.transform = 'translateX(100%)';
         setTimeout(() => {
@@ -1438,7 +1419,7 @@ async function createSingleProjectMarkers(project, city) {
             return;
         }
         
-        showLoading(true, `Загрузка магазинов ${project}: 0 из ${cityStores.length}`);
+        showLoading(true, `Загрузка магазинов: 0 из ${cityStores.length}`);
         
         const storesByAddress = new Map();
         
