@@ -2100,6 +2100,11 @@ function calculateDuration(coord1, coord2) {
 }
 
 async function geocodeAddress(address) {
+    
+    if (address.trim() === 'Москва, Московская область') {
+        return [55.7558, 37.6173];
+    }
+    
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=ru&addressdetails=1&accept-language=ru`;
     
     try {
@@ -2135,6 +2140,14 @@ async function geocodeFullAddress(fullAddress) {
     try {
         if (!fullAddress || fullAddress.trim() === '') {
             return null;
+        }
+
+        if (fullAddress.trim() === 'Москва, Московская область') {
+            return {
+                lat: 55.7558,
+                lon: 37.6173,
+                address: fullAddress
+            };
         }
         
         if (!window.ymaps || !window.ymaps.geocode) {
