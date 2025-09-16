@@ -108,10 +108,29 @@ async function updateCache() {
 }
 
 async function forceUpdateCache() {
+    const updateCacheBtn = document.getElementById('updateCacheBtn');
+
     try {
+        if (updateCacheBtn) {
+            updateCacheBtn.disabled = true;
+            updateCacheBtn.innerHTML = '⏳ Обновляем...';
+        }
+        showLoading(true, 'Загружаем данные всех проектов...');
+
         projectDataCache.clear();
         await loadDataFromGoogleScript(CONFIG.googleScript.url, 'lenta');
+
+        showLoading(false);
+        
+        showNotification('Данные обновлены', 'success');
     } catch (error) {
+        showLoading(false);
+        showNotification('Ошибка обновления данных', 'error');
+    } finally {
+        if (updateCacheBtn) {
+            updateCacheBtn.disabled = false;
+            updateCacheBtn.innerHTML = '🔄 Обновить данные';
+        }
     }
 }
 
@@ -630,6 +649,10 @@ function setupEventListeners() {
     
     if (DOMCache.changeProjectBtn) {
         DOMCache.changeProjectBtn.addEventListener('click', showProjectModal);
+    }
+
+    if (DOMCache.updateCacheBtn) {
+        DOMCache.updateCacheBtn.addEventListener('click', forceUpdateCache);
     }
     
     if (DOMCache.searchInput) {
