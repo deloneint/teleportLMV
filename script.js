@@ -312,7 +312,6 @@ function startAutoCacheUpdate() {
                 console.error('❌ Ошибка автоматического обновления кэша:', error);
             }
         } else {
-            console.log('✅ Все данные в кэше актуальны');
         }
     }, 10 * 60 * 1000); // Проверка 10 минут 
 }
@@ -1665,7 +1664,7 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
     try {
         clearMapMarkers();
         
-        const searchRadius = 50; //Радиус поиска в километрах
+        const searchRadius = 25; //Радиус поиска в километрах
         
         const allProjects = ['lenta', 'magnet', 'vkusvill', 'lentaShtat'];
         let totalStores = 0;
@@ -2249,7 +2248,7 @@ function updateProjectInfo() {
             projectInfo.innerHTML = `
                 <div class="project-name">Все проекты</div>
                 <div class="city-name">${locationType}: ${selectedCity}</div>
-                <div class="project-note">Показываются магазины всех проектов в радиусе 50 км</div>
+                <div class="project-note">Показываются магазины всех проектов в радиусе 25 км</div>
             `;
         }
         
