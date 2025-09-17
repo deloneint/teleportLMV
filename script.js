@@ -118,6 +118,9 @@ async function forceUpdateCache() {
         showLoading(true, 'Загружаем данные всех проектов...');
 
         projectDataCache.clear();
+
+        clearAllCache();
+        
         await loadDataFromGoogleScript(CONFIG.googleScript.url, 'lenta');
 
         showLoading(false);
@@ -142,6 +145,13 @@ async function loadDataFromGoogleSheets(project) {
     if (isLoadingData) {
         return { storesData: [], citiesData: [] };
     }
+
+    const cachedData = getCachedData(project);
+    if (cachedData) {
+        window.storesData = cachedData.storesData;
+        citiesData = cachedData.citiesData;
+        return cachedData;
+    }
     
     isLoadingData = true;
     
@@ -153,11 +163,14 @@ async function loadDataFromGoogleSheets(project) {
         
         if (rawData && rawData.length > 0) {
             const cities = extractUniqueCities(rawData, project);
+            const result = { storesData: rawData, citiesData: cities };
+            
+            setCachedData(project, result);
             
             window.storesData = rawData;
             citiesData = cities;
             
-            return { storesData: rawData, citiesData: cities };
+            return result;
         } else {
             return { storesData: [], citiesData: [] };
         }
@@ -170,6 +183,165 @@ async function loadDataFromGoogleSheets(project) {
         isLoadingData = false;
     }
 }
+
+function getCachedData(project) {
+    try {
+        const cached = localStorage.getItem(`project_data_${project}`);
+        if (cached) {
+            const data = JSON.parse(cached);
+            const age = Date.now() - data.timestamp;
+            const maxAge = 30 * 60 * 1000; // 30 минут
+            
+            if (age < maxAge) {
+                console.log(`✅ Загружаем данные ${project} из кэша (возраст: ${Math.round(age/1000)}с)`);
+                return data.data;
+            } else {
+                console.log(`⏰ Кэш ${project} устарел (возраст: ${Math.round(age/1000)}с), загружаем заново`);
+                localStorage.removeItem(`project_data_${project}`);
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка чтения кэша:', error);
+        localStorage.removeItem(`project_data_${project}`);
+    }
+    return null;
+}
+
+function setCachedData(project, data) {
+    try {
+        localStorage.setItem(`project_data_${project}`, JSON.stringify({
+            data: data,
+            timestamp: Date.now()
+        }));
+        console.log(`💾 Данные ${project} сохранены в кэш (время жизни: 30 минут)`);
+    } catch (error) {
+        console.error('Ошибка записи кэша:', error);
+        clearOldCache();
+        try {
+            localStorage.setItem(`project_data_${project}`, JSON.stringify({
+                data: data,
+                timestamp: Date.now()
+            }));
+        } catch (e) {
+            console.error('Не удалось сохранить в кэш:', e);
+        }
+    }
+}
+
+function clearOldCache() {
+    try {
+        const keys = Object.keys(localStorage);
+        const projectKeys = keys.filter(key => key.startsWith('project_data_'));
+        
+        const sortedKeys = projectKeys.sort((a, b) => {
+            const dataA = JSON.parse(localStorage.getItem(a));
+            const dataB = JSON.parse(localStorage.getItem(b));
+            return dataA.timestamp - dataB.timestamp;
+        });
+        
+        const keysToRemove = sortedKeys.slice(0, Math.floor(sortedKeys.length / 2));
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        console.log(`Очищено ${keysToRemove.length} старых записей из кэша`);
+    } catch (error) {
+        console.error('Ошибка очистки кэша:', error);
+    }
+}
+
+function clearAllCache() {
+    try {
+        const keys = Object.keys(localStorage);
+        const projectKeys = keys.filter(key => key.startsWith('project_data_'));
+        projectKeys.forEach(key => localStorage.removeItem(key));
+        console.log(`🧹 Очищено ${projectKeys.length} записей из кэша`);
+    } catch (error) {
+        console.error('Ошибка очистки кэша:', error);
+    }
+}
+
+function checkCacheStatus() {
+    const keys = Object.keys(localStorage);
+    const projectKeys = keys.filter(key => key.startsWith('project_data_'));
+    
+    console.log('📊 Статус кэша:');
+    projectKeys.forEach(key => {
+        try {
+            const data = JSON.parse(localStorage.getItem(key));
+            const age = Date.now() - data.timestamp;
+            const maxAge = 30 * 60 * 1000; // 30 минут 
+            const status = age < maxAge ? '✅ Активен' : '⏰ Устарел';
+            console.log(`  ${key}: ${status} (возраст: ${Math.round(age/1000)}с)`);
+        } catch (error) {
+            console.log(`  ${key}: ❌ Ошибка чтения`);
+        }
+    });
+    
+    if (projectKeys.length === 0) {
+        console.log('  Кэш пуст');
+    }
+}
+
+window.checkCacheStatus = checkCacheStatus;
+
+let autoUpdateInterval = null;
+
+function startAutoCacheUpdate() {
+    if (autoUpdateInterval) {
+        clearInterval(autoUpdateInterval);
+    }
+    
+    autoUpdateInterval = setInterval(async () => {
+        console.log('🔄 Проверяем кэш на устаревшие данные...');
+        
+        const keys = Object.keys(localStorage);
+        const projectKeys = keys.filter(key => key.startsWith('project_data_'));
+        
+        let hasExpired = false;
+        
+        for (const key of projectKeys) {
+            try {
+                const data = JSON.parse(localStorage.getItem(key));
+                const age = Date.now() - data.timestamp;
+                const maxAge = 30 * 60 * 1000; // 30 минут
+                
+                if (age >= maxAge) {
+                    console.log(`⏰ Найден устаревший кэш: ${key} (возраст: ${Math.round(age/1000)}с)`);
+                    hasExpired = true;
+                }
+            } catch (error) {
+                console.error(`Ошибка проверки кэша ${key}:`, error);
+            }
+        }
+        
+        if (hasExpired) {
+            console.log('🔄 Обновляем устаревшие данные...');
+            try {
+                clearAllCache();
+                
+                await loadDataFromGoogleScript(CONFIG.googleScript.url, 'lenta');
+                
+                console.log('✅ Автоматическое обновление кэша завершено');
+            } catch (error) {
+                console.error('❌ Ошибка автоматического обновления кэша:', error);
+            }
+        } else {
+            console.log('✅ Все данные в кэше актуальны');
+        }
+    }, 10 * 60 * 1000); // Проверка 10 минут 
+    
+    console.log('🚀 Автоматическое обновление кэша запущено (проверка каждые 10 минут)');
+}
+
+function stopAutoCacheUpdate() {
+    if (autoUpdateInterval) {
+        clearInterval(autoUpdateInterval);
+        autoUpdateInterval = null;
+        console.log('⏹️ Автоматическое обновление кэша остановлено');
+    }
+}
+
+window.startAutoCacheUpdate = startAutoCacheUpdate;
+window.stopAutoCacheUpdate = stopAutoCacheUpdate;
 
 function initDOMCache() {
     DOMCache.searchInput = document.getElementById('searchInput');
@@ -236,6 +408,7 @@ async function checkAuth() {
 
 function logout() {
     stopUserStatusMonitoring();
+    stopAutoCacheUpdate();
     localStorage.removeItem('auth_session');
     window.location.href = 'auth.html';
 }
@@ -295,6 +468,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupEventListeners();
     
     preloadAllProjectData();
+
+    startAutoCacheUpdate();
     
     const closeStoreInfoBtn = document.getElementById('closeStoreInfoBtn');
     if (closeStoreInfoBtn) {
@@ -977,6 +1152,12 @@ function loadDataFromGoogleScript(scriptUrl, project) {
                             stores: loadedData[sheetName],
                             timestamp: Date.now()
                         });
+
+                        setCachedData(sheetName, {
+                            storesData: loadedData[sheetName],
+                            citiesData: cities
+                        });
+                        
                     } else {
                         projectDataCache.set(sheetName, {
                             cities: [],
