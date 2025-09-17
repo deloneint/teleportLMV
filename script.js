@@ -1379,19 +1379,34 @@ async function loadSingleProjectData() {
         let storesData, projectCities;
         
         if (projectDataCache.has(selectedProject)) {
+            console.log(`✅ Данные ${selectedProject} уже в кэше памяти`);
             const cachedData = projectDataCache.get(selectedProject);
             storesData = cachedData.stores;
             projectCities = cachedData.cities;
         } else {
-            const result = await loadDataFromGoogleSheets(selectedProject);
-            storesData = result.storesData;
-            projectCities = result.citiesData;
-            
-            projectDataCache.set(selectedProject, {
-                stores: result.storesData,
-                cities: result.citiesData,
-                lastUpdated: Date.now()
-            });
+            const cachedData = getCachedData(selectedProject);
+            if (cachedData) {
+                console.log(`✅ Загружаем данные ${selectedProject} из localStorage кэша`);
+                storesData = cachedData.storesData;
+                projectCities = cachedData.citiesData;
+                
+                projectDataCache.set(selectedProject, {
+                    stores: cachedData.storesData,
+                    cities: cachedData.citiesData,
+                    lastUpdated: Date.now()
+                });
+            } else {
+                console.log(`⏳ Загружаем данные ${selectedProject} с сервера...`);
+                const result = await loadDataFromGoogleSheets(selectedProject);
+                storesData = result.storesData;
+                projectCities = result.citiesData;
+                
+                projectDataCache.set(selectedProject, {
+                    stores: result.storesData,
+                    cities: result.citiesData,
+                    lastUpdated: Date.now()
+                });
+            }
         }
         
         if (storesData.length === 0) {
@@ -1447,14 +1462,26 @@ async function loadAllProjectsData() {
         const allProjects = ['lenta', 'magnet', 'vkusvill', 'lentaShtat'];
         
         for (const project of allProjects) {
-            if (!projectDataCache.has(project)) {
-                const result = await loadDataFromGoogleSheets(project);
-                projectDataCache.set(project, {
-                    stores: result.storesData,
-                    cities: result.citiesData,
-                    lastUpdated: Date.now()
-                });
+            if (projectDataCache.has(project)) {
+                console.log(`✅ Данные ${project} уже в кэше памяти`);
             } else {
+                const cachedData = getCachedData(project);
+                if (cachedData) {
+                    console.log(`✅ Загружаем данные ${project} из localStorage кэша`);
+                    projectDataCache.set(project, {
+                        stores: cachedData.storesData,
+                        cities: cachedData.citiesData,
+                        lastUpdated: Date.now()
+                    });
+                } else {
+                    console.log(`⏳ Загружаем данные ${project} с сервера...`);
+                    const result = await loadDataFromGoogleSheets(project);
+                    projectDataCache.set(project, {
+                        stores: result.storesData,
+                        cities: result.citiesData,
+                        lastUpdated: Date.now()
+                    });
+                }
             }
         }
         
