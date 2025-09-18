@@ -2031,6 +2031,7 @@ function showStoreInfo(storeData, projectType) {
                 const vacancyItem = document.createElement('div');
                 vacancyItem.className = 'detail-item';
                 
+                const isLenta = projectType === 'lenta';
                 const isMagnet = projectType === 'magnet';
                 const isVkusvill = projectType === 'vkusvill';
                 const isLentaShtat = projectType === 'lentaShtat';
@@ -2110,6 +2111,17 @@ function showStoreInfo(storeData, projectType) {
                             <div class="vacancy-detail"><strong>Тариф:</strong> ${store.tariff || '-'}</div>
                             <div class="vacancy-detail"><strong>Требования:</strong> ${store.requirments || '-'}</div>
                             <div class="vacancy-detail"><strong>График:</strong> ${store.graph || '-'}</div>
+                        </div>
+                    `;
+                    } else if (isLenta) {
+                    vacancyItem.innerHTML = `
+                        <div class="vacancy-title">Вакансия ${index + 1}</div>
+                        <div class="vacancy-details">
+                            <div class="vacancy-detail"><strong>Вакансия:</strong> ${store.vacancy || '-'}</div>
+                            <div class="vacancy-detail"><strong>Потребность:</strong> ${store.position || '-'}</div>
+                            <div class="vacancy-detail"><strong>Тариф:</strong> ${store.tariff || '-'} руб.</div>
+                            <div class="vacancy-detail"><strong>Приоритет:</strong> ${store.prioritet || '-'}</div>
+                            <div class="vacancy-detail"><strong>График:</strong> ${store.graphic || '-'}</div>
                         </div>
                     `;
                 } else {
