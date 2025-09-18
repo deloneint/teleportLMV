@@ -184,6 +184,90 @@ async function loadDataFromGoogleSheets(project) {
     }
 }
 
+// Кэш для геокодирования
+const geocodingCache = new Map();
+
+// Функции для работы с кэшем геокодирования
+function getCachedGeocoding(address) {
+    try {
+        const cached = localStorage.getItem(`geocoding_${address}`);
+        if (cached) {
+            const data = JSON.parse(cached);
+            // Проверяем, не устарели ли данные (7 дней)
+            const age = Date.now() - data.timestamp;
+            const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 дней
+            
+            if (age < maxAge) {
+                console.log(`✅ Координаты для "${address}" найдены в кэше`);
+                return data.coordinates;
+            } else {
+                console.log(`⏰ Кэш геокодирования для "${address}" устарел, удаляем`);
+                localStorage.removeItem(`geocoding_${address}`);
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка чтения кэша геокодирования:', error);
+        localStorage.removeItem(`geocoding_${address}`);
+    }
+    return null;
+}
+
+function setCachedGeocoding(address, coordinates) {
+    try {
+        localStorage.setItem(`geocoding_${address}`, JSON.stringify({
+            coordinates: coordinates,
+            timestamp: Date.now()
+        }));
+        console.log(`💾 Координаты для "${address}" сохранены в кэш`);
+    } catch (error) {
+        console.error('Ошибка записи кэша геокодирования:', error);
+        // Если localStorage переполнен, очищаем старые данные геокодирования
+        clearOldGeocodingCache();
+        try {
+            localStorage.setItem(`geocoding_${address}`, JSON.stringify({
+                coordinates: coordinates,
+                timestamp: Date.now()
+            }));
+        } catch (e) {
+            console.error('Не удалось сохранить в кэш геокодирования:', e);
+        }
+    }
+}
+
+function clearOldGeocodingCache() {
+    try {
+        const keys = Object.keys(localStorage);
+        const geocodingKeys = keys.filter(key => key.startsWith('geocoding_'));
+        
+        // Сортируем по времени создания (старые первыми)
+        const sortedKeys = geocodingKeys.map(key => ({
+            key,
+            timestamp: JSON.parse(localStorage.getItem(key)).timestamp
+        })).sort((a, b) => a.timestamp - b.timestamp);
+        
+        // Удаляем половину старых записей
+        const keysToRemove = sortedKeys.slice(0, Math.floor(sortedKeys.length / 2));
+        keysToRemove.forEach(item => {
+            localStorage.removeItem(item.key);
+        });
+        
+        console.log(`🧹 Очищено ${keysToRemove.length} старых записей геокодирования`);
+    } catch (error) {
+        console.error('Ошибка очистки кэша геокодирования:', error);
+    }
+}
+
+function clearAllGeocodingCache() {
+    try {
+        const keys = Object.keys(localStorage);
+        const geocodingKeys = keys.filter(key => key.startsWith('geocoding_'));
+        geocodingKeys.forEach(key => localStorage.removeItem(key));
+        console.log(`🧹 Очищено ${geocodingKeys.length} записей геокодирования`);
+    } catch (error) {
+        console.error('Ошибка очистки кэша геокодирования:', error);
+    }
+}
+
 function getCachedData(project) {
     try {
         const cached = localStorage.getItem(`project_data_${project}`);
@@ -272,7 +356,48 @@ function checkCacheStatus() {
     }
 }
 
+// Функция для проверки статуса кэша геокодирования
+function checkGeocodingCacheStatus() {
+    const keys = Object.keys(localStorage);
+    const geocodingKeys = keys.filter(key => key.startsWith('geocoding_'));
+    
+    console.log('🗺️ Статус кэша геокодирования:');
+    console.log(`  Всего записей: ${geocodingKeys.length}`);
+    
+    if (geocodingKeys.length > 0) {
+        let totalAge = 0;
+        let validEntries = 0;
+        
+        geocodingKeys.forEach(key => {
+            try {
+                const data = JSON.parse(localStorage.getItem(key));
+                const age = Date.now() - data.timestamp;
+                const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 дней
+                
+                if (age < maxAge) {
+                    validEntries++;
+                    totalAge += age;
+                }
+            } catch (error) {
+                console.error(`Ошибка чтения ${key}:`, error);
+            }
+        });
+        
+        console.log(`  Активных записей: ${validEntries}`);
+        console.log(`  Устаревших записей: ${geocodingKeys.length - validEntries}`);
+        if (validEntries > 0) {
+            console.log(`  Средний возраст: ${Math.round(totalAge / validEntries / 1000 / 60)} минут`);
+        }
+    } else {
+        console.log('  Кэш пуст');
+    }
+}
+
+// Делаем функции доступными глобально для тестирования
+
 window.checkCacheStatus = checkCacheStatus;
+window.checkGeocodingCacheStatus = checkGeocodingCacheStatus;
+window.clearAllGeocodingCache = clearAllGeocodingCache;
 
 let autoUpdateInterval = null;
 
@@ -2370,31 +2495,58 @@ async function geocodeFullAddress(fullAddress) {
             };
         }
         
-        if (!window.ymaps || !window.ymaps.geocode) {
-    
-            return await geocodeAddress(fullAddress);
+        // Проверяем кэш геокодирования
+        const cachedCoords = getCachedGeocoding(fullAddress);
+        if (cachedCoords) {
+            return {
+                lat: cachedCoords[0],
+                lon: cachedCoords[1],
+                address: fullAddress
+            };
         }
         
-        const result = await window.ymaps.geocode(fullAddress, {
-            results: 1,
-            kind: 'house'
-        });
+        // Если нет в кэше, делаем запрос к API
+        let coordinates = null;
         
-        if (result.geoObjects.getLength() > 0) {
-            const geoObject = result.geoObjects.get(0);
-            const coords = geoObject.geometry.getCoordinates();
+        if (!window.ymaps || !window.ymaps.geocode) {
+            // Используем Nominatim
+            coordinates = await geocodeAddress(fullAddress);
+        } else {
+            // Используем Яндекс API
+            try {
+                const result = await window.ymaps.geocode(fullAddress, {
+                    results: 1,
+                    kind: 'house'
+                });
+                
+                if (result.geoObjects.getLength() > 0) {
+                    const geoObject = result.geoObjects.get(0);
+                    const coords = geoObject.geometry.getCoordinates();
+                    coordinates = [coords[0], coords[1]];
+                }
+            } catch (error) {
+                console.error(`❌ Ошибка Яндекс геокодирования: ${error.message}`);
+                // Fallback на Nominatim
+                coordinates = await geocodeAddress(fullAddress);
+            }
+        }
+        
+        // Сохраняем результат в кэш
+        if (coordinates) {
+            setCachedGeocoding(fullAddress, coordinates);
             
             return {
-                lat: coords[0],
-                lon: coords[1],
-                address: geoObject.getAddressLine()
+                lat: coordinates[0],
+                lon: coordinates[1],
+                address: fullAddress
             };
         }
         
         return null;
         
     } catch (error) {
-        return await geocodeAddress(fullAddress);
+        console.error(`❌ Ошибка геокодирования: ${error.message}`);
+        return null;
     }
 }
 
