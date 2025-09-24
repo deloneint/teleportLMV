@@ -2221,12 +2221,20 @@ function showStoreInfo(storeData, projectType) {
                         </div>
                     `;
                     } else if (isLenta) {
+                    let formattedTariff = store.tariff || '-';
+                    if (formattedTariff !== '-' && formattedTariff !== '#N/A') {
+                        try {
+                            formattedTariff = String(formattedTariff).replace(/\n/g, '<br>');
+                        } catch (e) {
+                            console.warn('Ошибка форматирования тарифа:', e);
+                        }
+                    }
                     vacancyItem.innerHTML = `
                         <div class="vacancy-title">Вакансия ${index + 1}</div>
                         <div class="vacancy-details">
                             <div class="vacancy-detail"><strong>Вакансия:</strong> ${store.vacancy || '-'}</div>
                             <div class="vacancy-detail"><strong>Потребность:</strong> ${store.position || '-'}</div>
-                            <div class="vacancy-detail"><strong>Тариф:</strong> ${store.tariff || '-'}</div>
+                            <div class="vacancy-detail"><strong>Тариф:</strong> ${formattedTariff}</div>
                             <div class="vacancy-detail"><strong>Приоритет:</strong> ${store.prioritet || '-'}</div>
                             <div class="vacancy-detail"><strong>График:</strong> ${store.graphic || '-'}</div>
                         </div>
