@@ -1271,13 +1271,29 @@ function loadDataFromGoogleScript(scriptUrl, project) {
 function extractUniqueCities(rawData, project) {
     const field = project === 'magnet' ? 'area' : 'city';
     const locations = new Map();
+
+    const shouldMergeCities = (project === 'lenta' || project === 'lentaShtat');
     
     rawData.forEach((item, index) => {
         const value = item[field];
         if (value && value !== 'Не указан' && value !== 'Не указана' && value !== '') {
             const trimmedValue = value.trim();
             
-            if (!locations.has(trimmedValue)) {
+            let locationKey = trimmedValue;
+            let displayName = trimmedValue;
+            
+            if (shouldMergeCities) {
+                if (trimmedValue === 'Москва' || trimmedValue === 'Московская область') {
+                    locationKey = 'Москва и Московская область';
+                    displayName = 'Москва и Московская область';
+                }
+                else if (trimmedValue === 'Санкт-Петербург' || trimmedValue === 'Ленинградская область') {
+                    locationKey = 'Санкт-Петербург и Ленинградская область';
+                    displayName = 'Санкт-Петербург и Ленинградская область';
+                }
+            }
+            
+            if (!locations.has(locationKey)) {
                 let coordinates = null;
                 
                 if (item.coordinates) {
@@ -1287,14 +1303,17 @@ function extractUniqueCities(rawData, project) {
                     }
                 }
                 
-                locations.set(trimmedValue, {
-                    name: trimmedValue,
+                locations.set(locationKey, {
+                    name: displayName,
+                    originalNames: shouldMergeCities && (trimmedValue === 'Москва' || trimmedValue === 'Московская область' || trimmedValue === 'Санкт-Петербург' || trimmedValue === 'Ленинградская область') 
+                        ? (locationKey === 'Москва и Московская область' ? ['Москва', 'Московская область'] : ['Санкт-Петербург', 'Ленинградская область'])
+                        : [trimmedValue],
                     coordinates: coordinates,
                     storeCount: 0
                 });
             }
             
-            const location = locations.get(trimmedValue);
+            const location = locations.get(locationKey);
             location.storeCount++;
         }
     });
@@ -1724,7 +1743,19 @@ async function createSingleProjectMarkers(project, city) {
                 if (!store.city) {
                     return false;
                 }
+                if (project === 'lenta' || project === 'lentaShtat') {
+                    const storeCity = store.city.toLowerCase();
+                    
+                    if (city === 'Москва и Московская область') {
+                        return storeCity === 'москва' || storeCity === 'московская область';
+                    } else if (city === 'Санкт-Петербург и Ленинградская область') {
+                        return storeCity === 'санкт-петербург' || storeCity === 'ленинградская область';
+                    } else {
+                        return storeCity === city.toLowerCase();
+                    }
+                } else {
                 return store.city.toLowerCase() === city.toLowerCase();
+                }
             }
         });
         
