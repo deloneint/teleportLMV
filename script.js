@@ -2221,12 +2221,13 @@ function showStoreInfo(storeData, projectType) {
                         </div>
                     `;
                     } else if (isLenta) {
+                    const formattedTariff = (store.tariff || '-').replace(/\n/g, '<br>');
                     vacancyItem.innerHTML = `
                         <div class="vacancy-title">Вакансия ${index + 1}</div>
                         <div class="vacancy-details">
                             <div class="vacancy-detail"><strong>Вакансия:</strong> ${store.vacancy || '-'}</div>
                             <div class="vacancy-detail"><strong>Потребность:</strong> ${store.position || '-'}</div>
-                            <div class="vacancy-detail"><strong>Тариф:</strong> ${store.tariff || '-'} руб.</div>
+                            <div class="vacancy-detail"><strong>Тариф:</strong> ${formattedTariff}</div>
                             <div class="vacancy-detail"><strong>Приоритет:</strong> ${store.prioritet || '-'}</div>
                             <div class="vacancy-detail"><strong>График:</strong> ${store.graphic || '-'}</div>
                         </div>
