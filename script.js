@@ -2238,6 +2238,8 @@ function showStoreInfo(storeData, projectType) {
                             <div class="vacancy-detail"><strong>Вакансия:</strong> ${store.position || '-'}</div>
                             <div class="vacancy-detail"><strong>Потребность:</strong> ${store.need || '-'}</div>
                             <div class="vacancy-detail"><strong>Средний доход в день:</strong> ${store.income || '-'} руб.</div>
+                            <div class="vacancy-detail"><strong>Куратор:</strong> ${store.mentors || '-'}</div>
+
                         </div>
                     `;
                 } else if (isLentaShtat) {
