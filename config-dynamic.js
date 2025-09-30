@@ -5,7 +5,7 @@
 
     const _0x4f5a = [
         'c9eabc14-1177-487d-b843-8d6efec4c648',
-        'https://script.google.com/macros/s/AKfycbzxYa_xbvfCggNlk9jjav_SdnrPuVL8ZO03TtnlNinjbBS_-JsWy0QFJ6FTG6w6wASH/exec'
+        'https://script.google.com/macros/s/AKfycbwi9RXROkRhb2zqt_9qpHVcPRE8TaImQJECenaNzB5yRr5puaYybcdBzktrFtmLg54r/exec'
     ];
     
 
