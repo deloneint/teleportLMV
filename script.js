@@ -2232,16 +2232,25 @@ function showStoreInfo(storeData, projectType) {
                     
                     return;
                 } else if (isVkusvill) {
-                    vacancyItem.innerHTML = `
+                    let vkusvillDetails = `
                         <div class="vacancy-title">Вакансия ${index + 1}</div>
                         <div class="vacancy-details">
                             <div class="vacancy-detail"><strong>Вакансия:</strong> ${store.position || '-'}</div>
                             <div class="vacancy-detail"><strong>Потребность:</strong> ${store.need || '-'}</div>
                             <div class="vacancy-detail"><strong>Средний доход в день:</strong> ${store.income || '-'} руб.</div>
                             <div class="vacancy-detail"><strong>Куратор:</strong> ${store.mentors || '-'}</div>
-
-                        </div>
                     `;
+                    if (store.smena && store.smena !== '-' && store.smena !== '#N/A') {
+                        vkusvillDetails += `<div class="vacancy-detail"><strong>Смена:</strong> ${store.smena}</div>`;
+                    }
+                    
+                    if (store.metro && store.metro !== '-' && store.metro !== '#N/A') {
+                        vkusvillDetails += `<div class="vacancy-detail"><strong>Метро:</strong> ${store.metro}</div>`;
+                    }
+                    
+                    vkusvillDetails += `</div>`;
+                    
+                    vacancyItem.innerHTML = vkusvillDetails;
                 } else if (isLentaShtat) {
                     vacancyItem.innerHTML = `
                         <div class="vacancy-title">Вакансия ${index + 1}</div>
