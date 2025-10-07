@@ -1,8 +1,4 @@
-/* ======================================== */
-/* 🔍 ФИЛЬТР ПО ВАКАНСИЯМ - СТИЛИ */
-/* ======================================== */
 
-/* Секция фильтра в панели управления - в стиле сайта */
 .control-panel .vacancy-filter-section {
     margin-bottom: 20px;
     padding: 15px;
@@ -19,7 +15,6 @@
     font-weight: 600;
 }
 
-/* Стили для кнопки открытия фильтра - в стиле сайта */
 #openVacancyFilterBtn {
     width: 100%;
     background: var(--secondary-color);
@@ -44,7 +39,6 @@
     box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
 }
 
-/* Модальное окно фильтра - специфичные стили */
 #vacancyFilterModal {
     position: fixed;
     top: 0;
@@ -103,13 +97,11 @@
     gap: 10px;
 }
 
-/* Контейнер списка вакансий */
 #vacancyListContainer {
     padding: 10px 0;
     overflow: visible;
 }
 
-/* Список вакансий по проектам */
 #vacancyFilterModal .vacancy-list {
     display: flex;
     flex-direction: column;
@@ -138,7 +130,6 @@
     gap: 10px;
 }
 
-/* Кнопки вакансий */
 #vacancyFilterModal .vacancy-button {
     padding: 10px 15px;
     border: 2px solid #e9ecef;
@@ -173,7 +164,6 @@
     transform: translateY(-1px);
 }
 
-/* Индикатор количества маркеров */
 #vacancyFilterModal .vacancy-button::after {
     content: '';
     position: absolute;
@@ -218,7 +208,6 @@
     background: #dc3545;
 }
 
-/* Сообщение об ошибке */
 #vacancyFilterModal .vacancy-filter-error {
     text-align: center;
     padding: 20px;
