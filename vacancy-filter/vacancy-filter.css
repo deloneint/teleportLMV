@@ -177,37 +177,6 @@
     transition: opacity 0.2s ease;
 }
 
-#vacancyFilterModal .vacancy-button[title*="Количество магазинов: 0"]::after {
-    display: none;
-}
-
-#vacancyFilterModal .vacancy-button[title*="Количество магазинов: 1"]::after {
-    opacity: 0.6;
-}
-
-#vacancyFilterModal .vacancy-button[title*="Количество магазинов: 2"]::after {
-    opacity: 0.8;
-}
-
-#vacancyFilterModal .vacancy-button[title*="Количество магазинов: 3"]::after {
-    opacity: 1;
-}
-
-#vacancyFilterModal .vacancy-button[title*="Количество магазинов: 4"]::after {
-    opacity: 1;
-    background: #ffc107;
-}
-
-#vacancyFilterModal .vacancy-button[title*="Количество магазинов: 5"]::after {
-    opacity: 1;
-    background: #fd7e14;
-}
-
-#vacancyFilterModal .vacancy-button[title*="Количество магазинов: 6"]::after {
-    opacity: 1;
-    background: #dc3545;
-}
-
 #vacancyFilterModal .vacancy-filter-error {
     text-align: center;
     padding: 20px;
