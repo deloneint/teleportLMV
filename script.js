@@ -571,6 +571,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     if (savedProject && savedCity) {
         selectedProject = savedProject;
+        window.selectedProject = selectedProject;
         selectedCity = savedCity;
         updateProjectInfo();
         centerMapOnCity(selectedCity);
@@ -590,6 +591,7 @@ function createMap() {
             zoom: CONFIG.yandex.zoom,
             controls: ['zoomControl', 'fullscreenControl']
         });
+        window.map = map;
         
         map.events.add('click', function (e) {
             if (currentSearchMarker && currentSearchMarker.balloon) {
@@ -941,6 +943,15 @@ function setupEventListeners() {
     if (DOMCache.projectModeSwitch) {
         DOMCache.projectModeSwitch.addEventListener('click', toggleProjectMode);
     }
+    
+    const openVacancyFilterBtn = document.getElementById('openVacancyFilterBtn');
+    if (openVacancyFilterBtn) {
+        openVacancyFilterBtn.addEventListener('click', () => {
+            if (window.showVacancyFilterModal) {
+                window.showVacancyFilterModal();
+            }
+        });
+    }
 }
 
 window.selectProject = selectProject;
@@ -950,6 +961,8 @@ window.getProjectMode = getProjectMode;
 window.loadSingleProjectData = loadSingleProjectData;
 window.loadAllProjectsData = loadAllProjectsData;
 window.createSingleProjectMarkers = createSingleProjectMarkers;
+window.map = map;
+window.selectedProject = selectedProject;
 
 
 
@@ -1012,6 +1025,7 @@ function showProjectModal() {
     }
     
     selectedProject = null;
+    window.selectedProject = selectedProject;
     selectedCity = null;
     
     isSingleProjectMode = false;
@@ -1065,6 +1079,7 @@ function selectProject(project) {
     }
     
     selectedProject = project;
+    window.selectedProject = selectedProject;
     
     document.querySelectorAll('.project-card').forEach(card => {
         card.classList.remove('selected');
@@ -1127,6 +1142,7 @@ function selectProject(project) {
 
 function backToProjectSelection() {
     selectedProject = null;
+    window.selectedProject = selectedProject;
     selectedCity = null;
     
     hideStoreInfo();
@@ -1152,8 +1168,6 @@ function backToProjectSelection() {
     document.getElementById('citySearchInput').value = '';
     filterCities('');
 }
-
-
 
 async function loadCitiesForProject(project) {
     if (!project) {
@@ -1419,6 +1433,7 @@ function selectCity(city, event) {
         if (activeProjectCard) {
             const projectName = activeProjectCard.dataset.project;
             selectedProject = projectName;
+            window.selectedProject = selectedProject;
         } else {
             return;
         }
@@ -2108,6 +2123,11 @@ function createStoreMarker(coordinates, storeData, projectType) {
             preset: 'islands#blueDotIcon',
             iconColor: getProjectColor(projectType)
         });
+
+        marker.data = {
+            project: projectType,
+            store: storeData
+        };
         
         map.geoObjects.add(marker);
         
