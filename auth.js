@@ -38,16 +38,68 @@ class SimpleAuth {
             this.toggleForms();
         });
 
-
-        document.getElementById('phone').addEventListener('input', (e) => {
-            e.target.value = this.formatPhone(e.target.value);
+        const phoneInput = document.getElementById('phone');
+        
+        phoneInput.addEventListener('focus', (e) => {
+            e.target.dataset.userInteracted = 'true';
         });
 
-        document.getElementById('regPhone').addEventListener('input', (e) => {
-            e.target.value = this.formatPhone(e.target.value);
+        phoneInput.addEventListener('input', (e) => {
+            const cursorPosition = e.target.selectionStart;
+            const oldValue = e.target.value;
+            const newValue = this.formatPhone(e.target.value);
+            
+            e.target.value = newValue;
+            
+            const newCursorPosition = this.getNewCursorPosition(oldValue, newValue, cursorPosition);
+            e.target.setSelectionRange(newCursorPosition, newCursorPosition);
+            
+            this.updatePhoneValidation(e.target, 'phoneStatus');
+        });
+
+        phoneInput.addEventListener('keydown', (e) => {
+            this.handlePhoneKeydown(e);
+        });
+        
+        phoneInput.addEventListener('blur', (e) => {
+            if (e.target.value.length === 0) {
+                const statusElement = document.getElementById('phoneStatus');
+                statusElement.style.display = 'none';
+                e.target.classList.remove('valid', 'invalid');
+            }
+        });
+
+        const regPhoneInput = document.getElementById('regPhone');
+        
+        regPhoneInput.addEventListener('focus', (e) => {
+            e.target.dataset.userInteracted = 'true';
+        });
+        
+        regPhoneInput.addEventListener('input', (e) => {
+            const cursorPosition = e.target.selectionStart;
+            const oldValue = e.target.value;
+            const newValue = this.formatPhone(e.target.value);
+            
+            e.target.value = newValue;
+            
+            const newCursorPosition = this.getNewCursorPosition(oldValue, newValue, cursorPosition);
+            e.target.setSelectionRange(newCursorPosition, newCursorPosition);
+            
+            this.updatePhoneValidation(e.target, 'regPhoneStatus');
+        });
+
+        regPhoneInput.addEventListener('keydown', (e) => {
+            this.handlePhoneKeydown(e);
+        });
+        
+        regPhoneInput.addEventListener('blur', (e) => {
+            if (e.target.value.length === 0) {
+                const statusElement = document.getElementById('regPhoneStatus');
+                statusElement.style.display = 'none';
+                e.target.classList.remove('valid', 'invalid');
+            }
         });
     }
-
 
     toggleForms() {
         const loginForm = document.getElementById('loginForm');
@@ -66,7 +118,6 @@ class SimpleAuth {
             registerForm.style.display = 'block';
             switchText.innerHTML = 'Уже есть аккаунт? <a href="#" id="switchLink">Войти</a>';
         }
-
 
         document.getElementById('switchLink').addEventListener('click', (e) => {
             e.preventDefault();
@@ -259,41 +310,32 @@ async handleRegister() {
         window.location.href = 'auth.html';
     }
 
-    // Принудительный выход с уведомлением
     forceLogout(message) {
         this.stopUserStatusMonitoring();
         this.currentUser = null;
         this.clearSession();
         this.showNotification(message, 'error');
         
-        // Перенаправляем сразу
         window.location.href = 'auth.html';
     }
 
-    // Очистка сессии
     clearSession() {
         localStorage.removeItem('auth_session');
     }
 
-    // Запуск мониторинга статуса пользователя
     startUserStatusMonitoring(userId) {
-        // Останавливаем предыдущую подписку, если есть
         this.stopUserStatusMonitoring();
         
-        // Подписываемся на изменения статуса пользователя
         this.statusSubscription = window.SupabaseAuth.subscribeToUserStatus(userId, (isActive) => {
             if (!isActive) {
                 this.forceLogout('Ваш аккаунт был деактивирован администратором');
             }
         });
         
-        // Дополнительно запускаем периодическую проверку каждые 30 секунд
         this.startPeriodicStatusCheck(userId);
     }
     
-    // Периодическая проверка статуса пользователя
     startPeriodicStatusCheck(userId) {
-        // Очищаем предыдущий интервал, если есть
         if (this.statusCheckInterval) {
             clearInterval(this.statusCheckInterval);
         }
@@ -312,14 +354,12 @@ async handleRegister() {
         }, 30000); // Проверяем каждые 30 секунд
     }
 
-    // Остановка мониторинга статуса пользователя
     stopUserStatusMonitoring() {
         if (this.statusSubscription) {
             window.SupabaseAuth.unsubscribeFromUserStatus(this.statusSubscription);
             this.statusSubscription = null;
         }
         
-        // Останавливаем периодическую проверку
         if (this.statusCheckInterval) {
             clearInterval(this.statusCheckInterval);
             this.statusCheckInterval = null;
@@ -332,21 +372,158 @@ async handleRegister() {
         return phoneRegex.test(phone);
     }
 
+    handlePhoneKeydown(e) {
+        const input = e.target;
+        const cursorPosition = input.selectionStart;
+        const value = input.value;
+        
+        if ([8, 9, 27, 46, 37, 38, 39, 40].includes(e.keyCode)) {
+            if (e.keyCode === 8) {
+                e.preventDefault();
+                this.handleBackspace(input, cursorPosition);
+                return;
+            }
+            if (e.keyCode === 46) {
+                e.preventDefault();
+                this.handleDelete(input, cursorPosition);
+                return;
+            }
+            return;
+        }
+        
+        if (e.ctrlKey && [65, 67, 86, 88].includes(e.keyCode)) {
+            return;
+        }
+        
+        if (e.keyCode < 48 || e.keyCode > 57) {
+            e.preventDefault();
+            return;
+        }
+        
+        if (cursorPosition <= 3) {
+            input.setSelectionRange(4, 4);
+        }
+    }
+
+    handleBackspace(input, cursorPosition) {
+        const value = input.value;
+        
+        if (cursorPosition <= 3) {
+            return;
+        }
+        
+        if (cursorPosition > 0 && [' ', '(', ')', '-'].includes(value[cursorPosition - 1])) {
+            const newValue = value.slice(0, cursorPosition - 2) + value.slice(cursorPosition);
+            input.value = this.formatPhone(newValue);
+            input.setSelectionRange(cursorPosition - 2, cursorPosition - 2);
+        } else {
+            const newValue = value.slice(0, cursorPosition - 1) + value.slice(cursorPosition);
+            input.value = this.formatPhone(newValue);
+            input.setSelectionRange(cursorPosition - 1, cursorPosition - 1);
+        }
+    }
+
+    handleDelete(input, cursorPosition) {
+        const value = input.value;
+        
+        if (cursorPosition >= value.length) {
+            return;
+        }
+        
+        if (cursorPosition < value.length && [' ', '(', ')', '-'].includes(value[cursorPosition])) {
+            const newValue = value.slice(0, cursorPosition) + value.slice(cursorPosition + 2);
+            input.value = this.formatPhone(newValue);
+            input.setSelectionRange(cursorPosition, cursorPosition);
+        } else {
+            const newValue = value.slice(0, cursorPosition) + value.slice(cursorPosition + 1);
+            input.value = this.formatPhone(newValue);
+            input.setSelectionRange(cursorPosition, cursorPosition);
+        }
+    }
+
+    getNewCursorPosition(oldValue, newValue, oldCursorPosition) {
+        const digitsBeforeCursor = oldValue.slice(0, oldCursorPosition).replace(/\D/g, '').length;
+        
+        let newCursorPosition = 0;
+        let digitCount = 0;
+        
+        for (let i = 0; i < newValue.length; i++) {
+            if (/\d/.test(newValue[i])) {
+                digitCount++;
+                if (digitCount === digitsBeforeCursor) {
+                    newCursorPosition = i + 1;
+                    break;
+                }
+            }
+        }
+        
+        return Math.min(newCursorPosition, newValue.length);
+    }
+
+    updatePhoneValidation(input, statusElementId) {
+        const statusElement = document.getElementById(statusElementId);
+        const value = input.value;
+        const isValid = this.validatePhone(value);
+        
+        input.classList.remove('valid', 'invalid');
+        statusElement.classList.remove('valid', 'invalid');
+        
+        const hasUserInteraction = input.dataset.userInteracted === 'true';
+        
+        if (value.length === 0) {
+            if (!hasUserInteraction) {
+                statusElement.style.display = 'none';
+            } else {
+                statusElement.style.display = 'none';
+            }
+        } else if (value.length < 18) {
+            if (hasUserInteraction) {
+                input.classList.add('invalid');
+                statusElement.textContent = 'Введите полный номер телефона';
+                statusElement.classList.add('invalid');
+                statusElement.style.display = 'block';
+            }
+        } else if (isValid) {
+            input.classList.add('valid');
+            statusElement.textContent = '✓ Номер телефона корректен';
+            statusElement.classList.add('valid');
+            statusElement.style.display = 'block';
+        } else {
+            input.classList.add('invalid');
+            statusElement.textContent = '✗ Неверный формат номера';
+            statusElement.classList.add('invalid');
+            statusElement.style.display = 'block';
+        }
+    }
 
     formatPhone(value) {
 
         const numbers = value.replace(/\D/g, '');
         
 
-        if (numbers.startsWith('8') && numbers.length <= 11) {
-            const formatted = '+7 (' + numbers.slice(1, 4) + ') ' + numbers.slice(4, 7) + '-' + numbers.slice(7, 9) + '-' + numbers.slice(9, 11);
-            return formatted;
+        let cleanNumbers = numbers;
+        if (cleanNumbers.startsWith('8')) {
+            cleanNumbers = '7' + cleanNumbers.slice(1);
         }
         
-
-        if (numbers.startsWith('7') && numbers.length <= 11) {
-            const formatted = '+7 (' + numbers.slice(1, 4) + ') ' + numbers.slice(4, 7) + '-' + numbers.slice(7, 9) + '-' + numbers.slice(9, 11);
-            return formatted;
+        if (!cleanNumbers.startsWith('7') && cleanNumbers.length > 0) {
+            cleanNumbers = '7' + cleanNumbers;
+        }
+        
+        cleanNumbers = cleanNumbers.slice(0, 11);
+        
+        if (cleanNumbers.length === 0) {
+            return '';
+        } else if (cleanNumbers.length <= 1) {
+            return '+7';
+        } else if (cleanNumbers.length <= 4) {
+            return '+7 (' + cleanNumbers.slice(1);
+        } else if (cleanNumbers.length <= 7) {
+            return '+7 (' + cleanNumbers.slice(1, 4) + ') ' + cleanNumbers.slice(4);
+        } else if (cleanNumbers.length <= 9) {
+            return '+7 (' + cleanNumbers.slice(1, 4) + ') ' + cleanNumbers.slice(4, 7) + '-' + cleanNumbers.slice(7);
+        } else {
+            return '+7 (' + cleanNumbers.slice(1, 4) + ') ' + cleanNumbers.slice(4, 7) + '-' + cleanNumbers.slice(7, 9) + '-' + cleanNumbers.slice(9);
         }
         
         return value;
@@ -398,6 +575,23 @@ async handleRegister() {
     clearForms() {
         document.getElementById('loginForm').reset();
         document.getElementById('registerForm').reset();
+                
+        const phoneInput = document.getElementById('phone');
+        const regPhoneInput = document.getElementById('regPhone');
+        
+        if (phoneInput) {
+            phoneInput.dataset.userInteracted = 'false';
+            phoneInput.classList.remove('valid', 'invalid');
+            const phoneStatus = document.getElementById('phoneStatus');
+            if (phoneStatus) phoneStatus.style.display = 'none';
+        }
+        
+        if (regPhoneInput) {
+            regPhoneInput.dataset.userInteracted = 'false';
+            regPhoneInput.classList.remove('valid', 'invalid');
+            const regPhoneStatus = document.getElementById('regPhoneStatus');
+            if (regPhoneStatus) regPhoneStatus.style.display = 'none';
+        }
     }
 }
 
