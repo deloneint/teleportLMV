@@ -723,7 +723,7 @@ function selectLocation(location) {
             balloonContent: infoWindowContent
         },
         {
-            preset: 'islands#blueDotIcon'
+            preset: 'islands#homeIcon'
         }
     );
     
