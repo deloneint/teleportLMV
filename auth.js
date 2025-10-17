@@ -171,7 +171,7 @@ async handleLogin() {
                 this.showNotification('Успешный вход!', 'success');
                 
                 setTimeout(() => {
-                    window.location.href = 'index.html';
+                    window.location.href = 'main.html';
                 }, 1500);
             } else {
                 console.log('Ошибка создания сессии:', sessionResult);
@@ -248,7 +248,7 @@ async handleRegister() {
                 this.showNotification('Регистрация успешна!', 'success');
 
                 setTimeout(() => {
-                    window.location.href = 'index.html';
+                    window.location.href = 'main.html';
                 }, 2000);
             } else {
                 console.log('Ошибка создания сессии при регистрации:', sessionResult);
@@ -285,7 +285,7 @@ async handleRegister() {
                         // Запускаем мониторинг статуса пользователя
                         this.startUserStatusMonitoring(sessionData.userId);
                         // Перенаправляем на главную страницу
-                        window.location.href = 'index.html';
+                        window.location.href = 'main.html';
                     } else {
                         // Пользователь деактивирован, очищаем сессию
                         this.forceLogout('Ваш аккаунт был деактивирован администратором');
