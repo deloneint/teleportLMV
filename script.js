@@ -1209,7 +1209,7 @@ async function loadCitiesForProject(project) {
 function loadDataFromGoogleScript(scriptUrl, project) {
     
     return new Promise((resolve, reject) => {
-        const allSheets = ['lenta', 'lentaShtat', 'magnet', 'vkusvill'];
+        const allSheets = ['lenta', 'lentaShtat', 'magnet', 'vkusvill', 'pyaterochka'];
         const loadedData = {};
         let completedSheets = 0;
         
@@ -1580,7 +1580,7 @@ async function loadAllProjectsData() {
         hideProjectModal();
         updateProjectInfo();
         
-        const allProjects = ['lenta', 'magnet', 'vkusvill', 'lentaShtat'];
+        const allProjects = ['lenta', 'magnet', 'vkusvill', 'lentaShtat', 'pyaterochka'];
         
         for (const project of allProjects) {
             if (projectDataCache.has(project)) {
@@ -1819,7 +1819,7 @@ async function createAllProjectMarkersByCoordinates(cityCoordinates, cityName) {
         
         const searchRadius = 25; //Радиус поиска в километрах
         
-        const allProjects = ['lenta', 'magnet', 'vkusvill', 'lentaShtat'];
+        const allProjects = ['lenta', 'magnet', 'vkusvill', 'lentaShtat', 'pyaterochka'];
         let totalStores = 0;
         let processedStores = 0;
         
@@ -2337,7 +2337,8 @@ function getProjectColor(projectType) {
         'lenta': '#45b7d1',      // Синий 
         'magnet': '#ff6b6b',     // Красный 
         'vkusvill': '#008000',   // Зеленый 
-        'lentaShtat': '#9c27b0' // Фиолетовый
+        'lentaShtat': '#9c27b0', // Фиолетовый
+        'pyaterochka': '#ff9500' // Оранжевый
     };
     
     return colors[projectType] || '#666666';
@@ -2348,7 +2349,8 @@ function getProjectDisplayName(project) {
         'lenta': 'Лента',
         'magnet': 'Магнит',
         'vkusvill': 'ВкусВилл',
-        'lentaShtat': 'Лента Штат'
+        'lentaShtat': 'Лента Штат',
+        'pyaterochka': 'Х5-групп курьеры'
     };
     return projectNames[project] || project;
 }
