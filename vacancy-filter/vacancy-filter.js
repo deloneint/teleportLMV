@@ -218,7 +218,9 @@ function getProjectDisplayName(projectName) {
     const projectNames = {
         'lenta': 'Лента',
         'lentaShtat': 'Лента Штат',
-        'vkusvill': 'ВкусВилл'
+        'magnet': 'Магнит',
+        'vkusvill': 'ВкусВилл',
+        'pyaterochka': 'Х5-групп курьеры'
     };
     return projectNames[projectName] || projectName;
 }
