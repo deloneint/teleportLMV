@@ -1,5 +1,5 @@
 
-import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js@2'
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.32.0/+esm'
 
 
 const supabase = createClient(
